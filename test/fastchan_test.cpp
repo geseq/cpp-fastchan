@@ -16,8 +16,12 @@ int main() {
         chan.put(i);
     }
     assert(chan.size() == iterations);
+    assert(chan.isFull() == true);
+    assert(chan.isEmpty() == false);
     chan.empty();
     assert(chan.size() == 0);
+    assert(chan.isEmpty() == true);
+    assert(chan.isFull() == false);
 
     // Test put and read with a single thread
     for (int i = 0; i < iterations; ++i) {
