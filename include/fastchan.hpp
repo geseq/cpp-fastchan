@@ -40,7 +40,7 @@ class FastChan {
         wait_for_writer_.clear();
     }
 
-    T read() {
+    T get() {
         while (reader_index_.load() > last_committed_index_.load()) {
             wait_for_writer_.wait(true);
         }
