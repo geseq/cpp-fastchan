@@ -57,7 +57,9 @@ int main() {
     std::thread consumer([&chan]() {
         for (int i = 0; i < iterations * 2; ++i) {
             std::cout << "GET" << i << std::endl;
-            assert(chan.get() == i);
+auto read = chan.get();
+std::cout << "GOT" << read << std::endl;
+            assert(read == i);
         }
     });
 
