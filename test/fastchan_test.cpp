@@ -1,12 +1,11 @@
 #include <cassert>
 #include <fastchan.hpp>
-#include <iostream>
 #include <thread>
 
 using namespace std::chrono_literals;
 
 int main() {
-    constexpr int iterations = 8;  // power of 2
+    constexpr int iterations = 4096;  // power of 2
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::FastChan<int, chan_size> chan;
 
@@ -45,18 +44,15 @@ int main() {
     chan.empty();
     assert(chan.size() == 0);
 
-    std::cout << "Test with multiple threads" << std::endl;
     // Test put and get with multiple threads
-    std::thread producer([&] {
+    std::thread producer([chan&] {
         for (int i = 0; i < iterations * 2; ++i) {
-            std::cout << "PUT" << i << std::endl;
             chan.put(i);
         }
     });
 
-    std::thread consumer([&] {
+    std::thread consumer([chan&] {
         for (int i = 0; i < iterations * 2; ++i) {
-            std::cout << "GET" << i << std::endl;
             assert(chan.get() == i);
         }
     });
