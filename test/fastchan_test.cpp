@@ -57,6 +57,18 @@ int main() {
         }
     });
 
+    sched_param sch;
+    int policy; 
+    pthread_getschedparam(producer.native_handle(), &policy, &sch);
+    if (pthread_setschedparam(producer.native_handle(), SCHED_FIFO, &sch)) {
+        std::cout << "Failed to setschedparam: " << std::strerror(errno) << '\n';
+    }
+
+    pthread_getschedparam(consumer.native_handle(), &policy, &sch);
+    if (pthread_setschedparam(consumer.native_handle(), SCHED_FIFO, &sch)) {
+        std::cout << "Failed to setschedparam: " << std::strerror(errno) << '\n';
+    }
+
     producer.join();
     consumer.join();
 
