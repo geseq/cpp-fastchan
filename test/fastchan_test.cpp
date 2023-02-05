@@ -47,19 +47,17 @@ int main() {
 
     std::cout << "Test with multiple threads" << std::endl;
     // Test put and get with multiple threads
-    std::thread producer([&chan] {
+    std::thread producer([&] {
         for (int i = 0; i < iterations * 2; ++i) {
             std::cout << "PUT" << i << std::endl;
             chan.put(i);
         }
     });
 
-    std::thread consumer([&chan]() {
+    std::thread consumer([&] {
         for (int i = 0; i < iterations * 2; ++i) {
             std::cout << "GET" << i << std::endl;
-auto read = chan.get();
-std::cout << "GOT" << read << std::endl;
-            assert(read == i);
+            assert(chan.get() == i);
         }
     });
 
