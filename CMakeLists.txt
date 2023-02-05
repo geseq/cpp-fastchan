@@ -5,11 +5,6 @@ enable_testing()
 
 set(CMAKE_CXX_STANDARD 14)
 
-set(CMAKE_THREAD_LIBS_INIT "-lpthread")
-set(CMAKE_HAVE_THREADS_LIBRARY ON)
-set(CMAKE_USE_PTHREADS_INIT ON)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-
 set(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(fastchan include/fastchan.hpp)
