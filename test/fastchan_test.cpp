@@ -1,6 +1,7 @@
 #include <cassert>
 #include <fastchan.hpp>
 #include <thread>
+#include <iostream>
 
 using namespace std::chrono_literals;
 
