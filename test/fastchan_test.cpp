@@ -45,13 +45,13 @@ int main() {
     assert(chan.size() == 0);
 
     // Test put and get with multiple threads
-    std::thread producer([chan&] {
+    std::thread producer([&chan] {
         for (int i = 0; i < iterations * 2; ++i) {
             chan.put(i);
         }
     });
 
-    std::thread consumer([chan&] {
+    std::thread consumer([&chan] {
         for (int i = 0; i < iterations * 2; ++i) {
             assert(chan.get() == i);
         }
