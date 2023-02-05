@@ -1,5 +1,6 @@
 #include <cassert>
 #include <fastchan.hpp>
+#include <iostream>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -44,6 +45,7 @@ int main() {
     chan.empty();
     assert(chan.size() == 0);
 
+    std::cout << "Test with multiple threads" << std::endl;
     // Test put and get with multiple threads
     std::thread producer([&] {
         for (int i = 0; i < iterations * 2; ++i) {
