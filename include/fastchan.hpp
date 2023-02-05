@@ -26,7 +26,7 @@ class FastChan {
     }
 
     void put(const T &value) {
-        std::size_t my_index = next_free_index_.fetch_add(1);
+        auto my_index = next_free_index_.fetch_add(1);
         while (my_index > (reader_index_.load() + size_ - 1)) {
             wait_for_reader_.wait(true);
         }
