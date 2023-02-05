@@ -31,4 +31,4 @@ ENDFOREACH ()
 
 set (CMAKE_CTEST_ARGUMENTS "-L;test")
 
-add_custom_target(bench COMMAND ctest -L bench -v)
+add_custom_target(bench COMMAND ctest -L bench -V)
