@@ -1,14 +1,12 @@
 #include <cassert>
 #include <fastchan.hpp>
-#include <iostream>
-#include <ostream>
 #include <thread>
 
 using namespace std::chrono_literals;
 
 int main() {
     constexpr int iterations = 4096;  // power of 2
-    constexpr std::size_t chan_size = iterations - 1;
+    constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::FastChan<int, chan_size> chan;
 
     // Test put and read with a single thread

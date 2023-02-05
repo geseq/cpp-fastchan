@@ -1,11 +1,7 @@
-#include <sys/types.h>
-
 #include <chrono>
-#include <cstdint>
 #include <fastchan.hpp>
 #include <iostream>
 #include <thread>
-#include <vector>
 
 template <size_t min_size>
 void benchmarkFastChanPut(int n) {
