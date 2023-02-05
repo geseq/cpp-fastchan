@@ -54,7 +54,7 @@ int main() {
         }
     });
 
-    std::thread consumer([&] {
+    std::thread consumer([&](fastchan::FastChan<int, chan_size>& chan) {
         for (int i = 0; i < iterations * 2; ++i) {
             std::cout << "GET" << i << std::endl;
             assert(chan.get() == i);
