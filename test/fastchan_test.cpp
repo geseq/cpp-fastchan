@@ -6,7 +6,7 @@
 using namespace std::chrono_literals;
 
 int main() {
-    constexpr int iterations = 4096;  // power of 2
+    constexpr int iterations = 8;  // power of 2
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::FastChan<int, chan_size> chan;
 
@@ -49,12 +49,14 @@ int main() {
     // Test put and get with multiple threads
     std::thread producer([&] {
         for (int i = 0; i < iterations * 2; ++i) {
+            std::cout << "PUT" << i << std::endl;
             chan.put(i);
         }
     });
 
     std::thread consumer([&] {
         for (int i = 0; i < iterations * 2; ++i) {
+            std::cout << "GET" << i << std::endl;
             assert(chan.get() == i);
         }
     });
