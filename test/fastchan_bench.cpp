@@ -5,7 +5,7 @@
 
 template <size_t min_size>
 void benchmarkFastChanPut(int n) {
-    fastchan::FastChan<uint8_t, min_size> c;
+    fastchan::FastChan<uint8_t, min_size, fastchan::BlockingBoth> c;
 
     std::thread reader([&]() {
         for (int i = 0; i < n; i++) {
@@ -27,7 +27,7 @@ void benchmarkFastChanPut(int n) {
 
 template <size_t min_size>
 void benchmarkFastChanGet(int n) {
-    fastchan::FastChan<uint8_t, min_size> c;
+    fastchan::FastChan<uint8_t, min_size, fastchan::BlockingBoth> c;
 
     std::thread reader([&]() {
         for (int i = 0; i < n; i++) {
