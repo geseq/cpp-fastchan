@@ -48,11 +48,11 @@ class FastChan {
         reader_index_.store(1, std::memory_order_release);
     }
 
-    std::size_t size() const noexcept { return last_committed_index_.load() - reader_index_.load() + 1; }
+    std::size_t size() const noexcept { return last_committed_index_.load(std::memory_order_acquire) - reader_index_.load(std::memory_order_acquire) + 1; }
 
-    bool isEmpty() const noexcept { return reader_index_.load() > last_committed_index_.load(); }
+    bool isEmpty() const noexcept { return reader_index_.load(std::memory_order_acquire) > last_committed_index_.load(std::memory_order_acquire); }
 
-    bool isFull() const noexcept { return next_free_index_.load() > (reader_index_.load() + index_mask_); }
+    bool isFull() const noexcept { return next_free_index_.load(std::memory_order_acquire) > (reader_index_.load(std::memory_order_acquire) + index_mask_); }
 
    private:
     const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
