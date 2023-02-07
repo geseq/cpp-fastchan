@@ -29,11 +29,7 @@ class FastChan {
         }
 
         contents_[my_index & index_mask_] = value;
-
-        auto prev_index = my_index - 1;
-        while (!last_committed_index_.compare_exchange_strong(prev_index, my_index, std::memory_order_acq_rel, std::memory_order_acquire)) {
-            std::this_thread::yield();
-        }
+        last_committed_index_.store(my_index, std::memory_order_release);
     }
 
     T get() noexcept {
