@@ -9,6 +9,8 @@ namespace fastchan {
 #define CHAR_BIT __CHAR_BIT__
 #endif
 
+enum BlockingType { NonBlocking, BlockingPut, BlockingGet, BlockingBoth };
+
 constexpr size_t roundUpNextPowerOfTwo(size_t v) {
     v--;
     for (size_t i = 1; i < sizeof(v) * CHAR_BIT; i *= 2) {
@@ -17,7 +19,7 @@ constexpr size_t roundUpNextPowerOfTwo(size_t v) {
     return ++v;
 }
 
-template <typename T, size_t min_size>
+template <typename T, size_t min_size, BlockingType blocking>
 class FastChan {
    public:
     FastChan() : last_committed_index_(0), next_free_index_(1), reader_index_(1) {}
@@ -25,6 +27,9 @@ class FastChan {
     void put(const T &value) noexcept {
         auto my_index = next_free_index_.fetch_add(1, std::memory_order_acq_rel);
         while (my_index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
+            if (blocking == NonBlocking || blocking == BlockingGet) {
+                return;
+            }
             std::this_thread::yield();
         }
 
@@ -34,6 +39,9 @@ class FastChan {
 
     T get() noexcept {
         while (reader_index_.load(std::memory_order_acquire) > last_committed_index_.load(std::memory_order_acquire)) {
+            if (blocking == NonBlocking || blocking == BlockingPut) {
+                return T();
+            }
             std::this_thread::yield();
         }
 

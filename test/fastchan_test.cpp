@@ -7,7 +7,7 @@ using namespace std::chrono_literals;
 int main() {
     constexpr int iterations = 4096;  // power of 2
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::FastChan<int, chan_size> chan;
+    fastchan::FastChan<int, chan_size, fastchan::BlockingBoth> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
