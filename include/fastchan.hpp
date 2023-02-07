@@ -42,17 +42,17 @@ class FastChan {
         return contents;
     }
 
-    void empty() {
+    void empty() noexcept {
         last_committed_index_.store(0, std::memory_order_release);
         next_free_index_.store(1, std::memory_order_release);
         reader_index_.store(1, std::memory_order_release);
     }
 
-    std::size_t size() const { return last_committed_index_.load() - reader_index_.load() + 1; }
+    std::size_t size() const noexcept { return last_committed_index_.load() - reader_index_.load() + 1; }
 
-    bool isEmpty() const { return reader_index_.load() > last_committed_index_.load(); }
+    bool isEmpty() const noexcept { return reader_index_.load() > last_committed_index_.load(); }
 
-    bool isFull() const { return next_free_index_.load() > (reader_index_.load() + index_mask_); }
+    bool isFull() const noexcept { return next_free_index_.load() > (reader_index_.load() + index_mask_); }
 
    private:
     const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
