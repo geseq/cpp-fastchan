@@ -23,33 +23,29 @@ class FastChan {
     FastChan() : last_committed_index_(0), next_free_index_(1), reader_index_(1) {}
 
     void put(const T &value) noexcept {
-        auto my_index = next_free_index_.fetch_add(1);
-        while (my_index > (reader_index_.load() + index_mask_)) {
+        auto my_index = next_free_index_.fetch_add(1, std::memory_order_acq_rel);
+        while (my_index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
             std::this_thread::yield();
         }
 
         contents_[my_index & index_mask_] = value;
-
-        auto prev_index = my_index - 1;
-        while (!last_committed_index_.compare_exchange_strong(prev_index, my_index)) {
-            std::this_thread::yield();
-        }
+        last_committed_index_.store(my_index, std::memory_order_release);
     }
 
     T get() noexcept {
-        while (reader_index_.load() > last_committed_index_.load()) {
+        while (reader_index_.load(std::memory_order_acquire) > last_committed_index_.load(std::memory_order_acquire)) {
             std::this_thread::yield();
         }
 
-        auto contents = contents_[reader_index_.load() & index_mask_];
-        reader_index_.fetch_add(1);
+        auto contents = contents_[reader_index_.load(std::memory_order_acquire) & index_mask_];
+        reader_index_.fetch_add(1, std::memory_order_acq_rel);
         return contents;
     }
 
     void empty() {
-        last_committed_index_.store(0);
-        next_free_index_.store(1);
-        reader_index_.store(1);
+        last_committed_index_.store(0, std::memory_order_release);
+        next_free_index_.store(1, std::memory_order_release);
+        reader_index_.store(1, std::memory_order_release);
     }
 
     std::size_t size() const { return last_committed_index_.load() - reader_index_.load() + 1; }
