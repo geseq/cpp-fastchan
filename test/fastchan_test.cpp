@@ -9,9 +9,19 @@ int main() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::FastChan<int, chan_size> chan;
 
+    assert(chan.size() == 0);
+    assert(chan.isEmpty() == true);
     // Test put and read with a single thread
     for (int i = 0; i < iterations; ++i) {
         chan.put(i);
+
+        assert(chan.size() == i + 1);
+        assert(chan.isEmpty() == false);
+        if (i < iterations - 1) {
+            assert(chan.isFull() == false);
+        } else {
+            assert(chan.isFull() == true);
+        }
     }
     assert(chan.size() == iterations);
     assert(chan.isFull() == true);
