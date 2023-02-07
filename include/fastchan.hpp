@@ -1,8 +1,13 @@
 #include <array>
 #include <atomic>
+#include <limits>
 #include <thread>
 
 namespace fastchan {
+
+#ifndef CHAR_BIT
+#define CHAR_BIT __CHAR_BIT__
+#endif
 
 constexpr size_t roundUpNextPowerOfTwo(size_t v) {
     v--;
@@ -15,9 +20,9 @@ constexpr size_t roundUpNextPowerOfTwo(size_t v) {
 template <typename T, size_t min_size>
 class FastChan {
    public:
-    FastChan() : index_mask_(roundUpNextPowerOfTwo(min_size) - 1), last_committed_index_(0), next_free_index_(1), reader_index_(1) {}
+    FastChan() : last_committed_index_(0), next_free_index_(1), reader_index_(1) {}
 
-    void put(const T &value) {
+    void put(const T &value) noexcept {
         auto my_index = next_free_index_.fetch_add(1);
         while (my_index > (reader_index_.load() + index_mask_)) {
             std::this_thread::yield();
@@ -31,7 +36,7 @@ class FastChan {
         }
     }
 
-    T get() {
+    T get() noexcept {
         while (reader_index_.load() > last_committed_index_.load()) {
             std::this_thread::yield();
         }
@@ -54,11 +59,11 @@ class FastChan {
     bool isFull() const { return next_free_index_.load() >= (reader_index_.load() + index_mask_); }
 
    private:
-    const std::size_t index_mask_;
+    const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
     alignas(64) std::atomic<std::size_t> last_committed_index_;
     alignas(64) std::atomic<std::size_t> next_free_index_;
     alignas(64) std::atomic<std::size_t> reader_index_;
-    std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
+    alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 };
 
 }  // namespace fastchan
