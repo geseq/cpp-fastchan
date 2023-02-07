@@ -42,7 +42,7 @@ class FastChan {
         }
 
         auto contents = contents_[reader_index_.load(std::memory_order_acquire) & index_mask_];
-        reader_index_.fetch_add(1, std::__1::memory_order_acq_rel);
+        reader_index_.fetch_add(1, std::memory_order_acq_rel);
         return contents;
     }
 
