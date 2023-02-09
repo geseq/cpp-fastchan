@@ -22,7 +22,7 @@ void benchmarkFastChanPut(int n) {
     reader.join();
 
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkFastChanPut" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
+    std::cout << "BenchmarkFastChan-Put" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
 template <size_t min_size>
@@ -44,7 +44,55 @@ void benchmarkFastChanGet(int n) {
     reader.join();
 
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkFastChanGet" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
+    std::cout << "BenchmarkFastChan-Get" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
+}
+
+template <size_t min_size>
+void benchmarkFastChanPutNonBlockingGet(int n) {
+    fastchan::FastChan<uint8_t, min_size, fastchan::NonBlockingGet> c;
+
+    std::thread reader([&]() {
+        for (int i = 0; i < n;) {
+            if (c.get() != 0) {
+                ++i;
+            }
+        }
+    });
+
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < n; ++i) {
+        c.put(1);
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+
+    reader.join();
+
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "BenchmarkFastChan-NonBlockingGet-Put" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
+}
+
+template <size_t min_size>
+void benchmarkFastChanGetNonBlockingGet(int n) {
+    fastchan::FastChan<uint8_t, min_size, fastchan::NonBlockingGet> c;
+
+    std::thread reader([&]() {
+        for (int i = 0; i < n; ++i) {
+            c.put(1);
+        }
+    });
+
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < n;) {
+        if (c.get() != 0) {
+            ++i;
+        }
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+
+    reader.join();
+
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "BenchmarkFastChan-NonBlockingGet-Get" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
 int main() {
@@ -69,6 +117,25 @@ int main() {
     benchmarkFastChanGet<262'144>(n);
     benchmarkFastChanGet<1'048'576>(n);
 
+    benchmarkFastChanPutNonBlockingGet<16>(n);
+    benchmarkFastChanPutNonBlockingGet<64>(n);
+    benchmarkFastChanPutNonBlockingGet<256>(n);
+    benchmarkFastChanPutNonBlockingGet<1024>(n);
+    benchmarkFastChanPutNonBlockingGet<4096>(n);
+    benchmarkFastChanPutNonBlockingGet<16'384>(n);
+    benchmarkFastChanPutNonBlockingGet<65'536>(n);
+    benchmarkFastChanPutNonBlockingGet<262'144>(n);
+    benchmarkFastChanPutNonBlockingGet<1'048'576>(n);
+
+    benchmarkFastChanGetNonBlockingGet<16>(n);
+    benchmarkFastChanGetNonBlockingGet<64>(n);
+    benchmarkFastChanGetNonBlockingGet<256>(n);
+    benchmarkFastChanGetNonBlockingGet<1024>(n);
+    benchmarkFastChanGetNonBlockingGet<4096>(n);
+    benchmarkFastChanGetNonBlockingGet<16'384>(n);
+    benchmarkFastChanGetNonBlockingGet<65'536>(n);
+    benchmarkFastChanGetNonBlockingGet<262'144>(n);
+    benchmarkFastChanGetNonBlockingGet<1'048'576>(n);
     return 0;
 }
 
