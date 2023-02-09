@@ -22,7 +22,7 @@ constexpr size_t roundUpNextPowerOfTwo(size_t v) {
 template <typename T, size_t min_size, BlockingType blocking>
 class FastChan {
    public:
-    FastChan() : last_committed_index_(0), next_free_index_(1), reader_index_(1) {}
+    FastChan() = default;
 
     bool put(const T &value) noexcept {
         auto my_index = next_free_index_.load(std::memory_order_relaxed);
@@ -33,15 +33,14 @@ class FastChan {
             std::this_thread::yield();
         }
 
-        next_free_index_.store(my_index + 1, std::memory_order_relaxed);
         contents_[my_index & index_mask_] = value;
-        last_committed_index_.store(my_index, std::memory_order_release);
+        next_free_index_.store(my_index + 1, std::memory_order_release);
         return true;
     }
 
     T get() noexcept {
         auto my_index = reader_index_.load(std::memory_order_relaxed);
-        while (my_index > last_committed_index_.load(std::memory_order_acquire)) {
+        while (my_index + 1 > next_free_index_.load(std::memory_order_acquire)) {
             if (blocking == NonBlocking || blocking == NonBlockingGet) {
                 return T();
             }
@@ -55,21 +54,19 @@ class FastChan {
 
     void empty() noexcept {
         next_free_index_.store(1, std::memory_order_release);
-        last_committed_index_.store(0, std::memory_order_release);
         reader_index_.store(1, std::memory_order_release);
     }
 
-    std::size_t size() const noexcept { return last_committed_index_.load(std::memory_order_acquire) - reader_index_.load(std::memory_order_acquire) + 1; }
+    std::size_t size() const noexcept { return next_free_index_.load(std::memory_order_acquire) - reader_index_.load(std::memory_order_acquire); }
 
-    bool isEmpty() const noexcept { return reader_index_.load(std::memory_order_acquire) > last_committed_index_.load(std::memory_order_acquire); }
+    bool isEmpty() const noexcept { return reader_index_.load(std::memory_order_acquire) > next_free_index_.load(std::memory_order_acquire) - 1; }
 
-    bool isFull() const noexcept { return next_free_index_ > (reader_index_.load(std::memory_order_acquire) + index_mask_); }
+    bool isFull() const noexcept { return next_free_index_.load(std::memory_order_relaxed) > (reader_index_.load(std::memory_order_acquire) + index_mask_); }
 
    private:
     const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
-    alignas(64) std::atomic<std::size_t> last_committed_index_{0};
-    alignas(64) std::atomic<std::size_t> reader_index_{0};
-    alignas(64) std::atomic<std::size_t> next_free_index_{0};
+    alignas(64) std::atomic<std::size_t> reader_index_{1};
+    alignas(64) std::atomic<std::size_t> next_free_index_{1};
     alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 };
 
