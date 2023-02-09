@@ -1,6 +1,7 @@
 #include <array>
 #include <atomic>
 #include <limits>
+#include <optional>
 #include <thread>
 
 namespace fastchan {
@@ -8,8 +9,6 @@ namespace fastchan {
 #ifndef CHAR_BIT
 #define CHAR_BIT __CHAR_BIT__
 #endif
-
-enum BlockingType { NonBlocking, NonBlockingPut, NonBlockingGet, Blocking };
 
 constexpr size_t roundUpNextPowerOfTwo(size_t v) {
     v--;
@@ -19,18 +18,25 @@ constexpr size_t roundUpNextPowerOfTwo(size_t v) {
     return ++v;
 }
 
-template <typename T, size_t min_size, BlockingType blocking>
+template <typename T, size_t min_size>
 class FastChan {
    public:
     FastChan() = default;
 
-    bool put(const T &value) noexcept {
+    void put(const T &value) noexcept {
         auto my_index = next_free_index_.load(std::memory_order_relaxed);
         while (my_index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
-            if (blocking == NonBlocking || blocking == NonBlockingPut) {
-                return false;
-            }
             std::this_thread::yield();
+        }
+
+        contents_[my_index & index_mask_] = value;
+        next_free_index_.store(my_index + 1, std::memory_order_release);
+    }
+
+    bool putWithoutBlocking(const T &value) noexcept {
+        auto my_index = next_free_index_.load(std::memory_order_relaxed);
+        if (my_index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
+            return false;
         }
 
         contents_[my_index & index_mask_] = value;
@@ -41,10 +47,18 @@ class FastChan {
     T get() noexcept {
         auto my_index = reader_index_.load(std::memory_order_relaxed);
         while (my_index + 1 > next_free_index_.load(std::memory_order_acquire)) {
-            if (blocking == NonBlocking || blocking == NonBlockingGet) {
-                return T();
-            }
             std::this_thread::yield();
+        }
+
+        auto contents = contents_[my_index & index_mask_];
+        reader_index_.store(my_index + 1, std::memory_order_release);
+        return contents;
+    }
+
+    std::optional<T> getWithoutBlocking() noexcept {
+        auto my_index = reader_index_.load(std::memory_order_relaxed);
+        if (my_index + 1 > next_free_index_.load(std::memory_order_acquire)) {
+            return std::nullopt;
         }
 
         auto contents = contents_[my_index & index_mask_];

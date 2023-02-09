@@ -5,7 +5,7 @@
 
 template <size_t min_size>
 void benchmarkFastChanPut(int n) {
-    fastchan::FastChan<uint8_t, min_size, fastchan::Blocking> c;
+    fastchan::FastChan<uint8_t, min_size> c;
 
     std::thread reader([&]() {
         for (int i = 0; i < n; i++) {
@@ -27,7 +27,7 @@ void benchmarkFastChanPut(int n) {
 
 template <size_t min_size>
 void benchmarkFastChanGet(int n) {
-    fastchan::FastChan<uint8_t, min_size, fastchan::Blocking> c;
+    fastchan::FastChan<uint8_t, min_size> c;
 
     std::thread reader([&]() {
         for (int i = 0; i < n; i++) {
@@ -49,11 +49,11 @@ void benchmarkFastChanGet(int n) {
 
 template <size_t min_size>
 void benchmarkFastChanPutNonBlockingGet(int n) {
-    fastchan::FastChan<uint8_t, min_size, fastchan::NonBlockingGet> c;
+    fastchan::FastChan<uint8_t, min_size> c;
 
     std::thread reader([&]() {
         for (int i = 0; i < n;) {
-            if (c.get() != 0) {
+            if (c.getWithoutBlocking()) {
                 ++i;
             }
         }
@@ -73,7 +73,7 @@ void benchmarkFastChanPutNonBlockingGet(int n) {
 
 template <size_t min_size>
 void benchmarkFastChanGetNonBlockingGet(int n) {
-    fastchan::FastChan<uint8_t, min_size, fastchan::NonBlockingGet> c;
+    fastchan::FastChan<uint8_t, min_size> c;
 
     std::thread reader([&]() {
         for (int i = 0; i < n; ++i) {
@@ -83,7 +83,7 @@ void benchmarkFastChanGetNonBlockingGet(int n) {
 
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < n;) {
-        if (c.get() != 0) {
+        if (c.getWithoutBlocking()) {
             ++i;
         }
     }
