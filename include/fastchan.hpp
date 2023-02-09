@@ -24,17 +24,18 @@ class FastChan {
    public:
     FastChan() : last_committed_index_(0), next_free_index_(1), reader_index_(1) {}
 
-    void put(const T &value) noexcept {
+    bool put(const T &value) noexcept {
         auto my_index = next_free_index_.fetch_add(1, std::memory_order_acq_rel);
         while (my_index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
             if (blocking == NonBlocking || blocking == NonBlockingPut) {
-                return;
+                return false;
             }
             std::this_thread::yield();
         }
 
         contents_[my_index & index_mask_] = value;
         last_committed_index_.store(my_index, std::memory_order_release);
+        return true;
     }
 
     T get() noexcept {
