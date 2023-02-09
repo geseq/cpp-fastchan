@@ -5,16 +5,22 @@
 
 using namespace std::chrono_literals;
 
-template <fastchan::BlockingType blockingType, int iterations>
+enum BlockingType { NonBlocking, NonBlockingPut, NonBlockingGet, Blocking };
+
+template <BlockingType blockingType, int iterations>
 void testFastchanSingleThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::FastChan<int, chan_size, blockingType> chan;
+    fastchan::FastChan<int, chan_size> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
     // Test put and read with a single thread
     for (int i = 0; i < iterations; ++i) {
-        assert(chan.put(i));
+        if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+            assert(chan.putWithoutBlocking(i));
+        } else {
+            chan.put(i);
+        }
 
         assert(chan.size() == i + 1);
         assert(chan.isEmpty() == false);
@@ -34,11 +40,19 @@ void testFastchanSingleThreaded() {
 
     // Test put and get with a single thread
     for (int i = 0; i < iterations; ++i) {
-        assert(chan.put(i));
+        if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+            assert(chan.putWithoutBlocking(i));
+        } else {
+            chan.put(i);
+        }
     }
 
     for (int i = 0; i < iterations; ++i) {
-        assert(chan.get() == i);
+        if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
+            assert(chan.getWithoutBlocking() == i);
+        } else {
+            assert(chan.get() == i);
+        }
     }
 
     assert(chan.isEmpty());
@@ -48,32 +62,39 @@ void testFastchanSingleThreaded() {
     assert(chan.isEmpty());
 }
 
-template <fastchan::BlockingType blockingType, int iterations>
+template <BlockingType blockingType, int iterations>
 void testFastchanMultiThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::FastChan<int, chan_size, blockingType> chan;
+    fastchan::FastChan<int, chan_size> chan;
 
     // Test put and get with multiple threads
     std::thread producer([&] {
-        for (int i = 1; i <= iterations * 2; i++) {
-            auto result = chan.put(i);
-            if (blockingType == fastchan::NonBlocking || blockingType == fastchan::NonBlockingPut) {
-                while (!result) {
-                    result = chan.put(i);
-                }
+        for (int i = 1; i <= iterations * 2; ++i) {
+            if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+                auto result = false;
+                do {
+                    result = chan.putWithoutBlocking(i);
+                } while (!result);
+                continue;
             }
+
+            chan.put(i);
         }
     });
 
     std::thread consumer([&] {
         for (int i = 1; i <= iterations * 2;) {
-            auto&& val = chan.get();
-            if (blockingType == fastchan::NonBlocking || blockingType == fastchan::NonBlockingGet) {
-                if (val == 0) {
-                    continue;
+            if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
+                auto&& val = chan.getWithoutBlocking();
+                while (!val) {
+                    val = chan.getWithoutBlocking();
                 }
+
+                ++i;
+                continue;
             }
 
+            auto val = chan.get();
             assert(val == i);
             ++i;
         }
@@ -85,17 +106,17 @@ void testFastchanMultiThreaded() {
     assert(chan.size() == 0);
 }
 
-template <fastchan::BlockingType blockingType>
+template <BlockingType blockingType>
 void testFastChan() {
     testFastchanSingleThreaded<blockingType, 4096>();
     testFastchanMultiThreaded<blockingType, 4096>();
 }
 
 int main() {
-    testFastChan<fastchan::Blocking>();
-    testFastChan<fastchan::NonBlockingGet>();
-    testFastChan<fastchan::NonBlockingPut>();
-    testFastChan<fastchan::NonBlocking>();
+    testFastChan<Blocking>();
+    testFastChan<NonBlockingGet>();
+    testFastChan<NonBlockingPut>();
+    testFastChan<NonBlocking>();
 
     return 0;
 }
