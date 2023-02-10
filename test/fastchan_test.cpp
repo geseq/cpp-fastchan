@@ -77,7 +77,7 @@ void testFastchanMultiThreaded() {
                 } while (!result);
                 continue;
             }
-            
+
             chan.put(i);
         }
     });
