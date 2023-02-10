@@ -27,8 +27,10 @@ jobs:
 
     - name: Build
       # Build your program with the given configuration
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      # Build your program with the given configuration
       run: |
-        cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
         cd build
         ctest -C ${{env.BUILD_TYPE}} -L test --force-new-test-process -V  --timeout 10
-
