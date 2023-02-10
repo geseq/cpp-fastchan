@@ -1,6 +1,5 @@
 #include <array>
 #include <atomic>
-#include <iostream>
 #include <limits>
 #include <optional>
 #include <thread>
