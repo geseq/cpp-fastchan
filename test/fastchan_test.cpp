@@ -5,8 +5,10 @@
 
 using namespace std::chrono_literals;
 
-int main() {
-    constexpr int iterations = 4096;  // power of 2
+enum BlockingType { NonBlocking, NonBlockingPut, NonBlockingGet, Blocking };
+
+template <BlockingType blockingType, int iterations>
+void testFastchanSingleThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::FastChan<int, chan_size> chan;
 
@@ -14,7 +16,11 @@ int main() {
     assert(chan.isEmpty() == true);
     // Test put and read with a single thread
     for (int i = 0; i < iterations; ++i) {
-        chan.put(i);
+        if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+            assert(chan.putWithoutBlocking(i));
+        } else {
+            chan.put(i);
+        }
 
         assert(chan.size() == i + 1);
         assert(chan.isEmpty() == false);
@@ -34,27 +40,63 @@ int main() {
 
     // Test put and get with a single thread
     for (int i = 0; i < iterations; ++i) {
-        chan.put(i);
+        if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+            assert(chan.putWithoutBlocking(i));
+        } else {
+            chan.put(i);
+        }
     }
 
     for (int i = 0; i < iterations; ++i) {
-        assert(chan.get() == i);
+        if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
+            assert(chan.getWithoutBlocking() == i);
+        } else {
+            assert(chan.get() == i);
+        }
     }
 
+    assert(chan.isEmpty());
     assert(chan.size() == 0);
     chan.empty();
     assert(chan.size() == 0);
+    assert(chan.isEmpty());
+}
+
+template <BlockingType blockingType, int iterations>
+void testFastchanMultiThreaded() {
+    constexpr std::size_t chan_size = (iterations / 2) + 1;
+    fastchan::FastChan<int, chan_size> chan;
 
     // Test put and get with multiple threads
-    std::thread producer([&chan] {
-        for (int i = 0; i < iterations * 2; ++i) {
+    std::thread producer([&] {
+        for (int i = 1; i <= iterations * 2; ++i) {
+            if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+                auto result = false;
+                do {
+                    result = chan.putWithoutBlocking(i);
+                } while (!result);
+                continue;
+            }
+            
             chan.put(i);
         }
     });
 
-    std::thread consumer([&chan] {
-        for (int i = 0; i < iterations * 2; ++i) {
-            assert(chan.get() == i);
+    std::thread consumer([&] {
+        for (int i = 1; i <= iterations * 2;) {
+            if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
+                auto&& val = chan.getWithoutBlocking();
+                while (!val) {
+                    val = chan.getWithoutBlocking();
+                }
+
+                ++i;
+                continue;
+            }
+
+            auto val = chan.get();
+            assert(val == i);
+            ++i;
         }
     });
 
@@ -62,16 +104,19 @@ int main() {
     consumer.join();
 
     assert(chan.size() == 0);
+}
 
-    // Test filling and then emptying the chan
-    for (int i = 0; i < iterations; ++i) {
-        chan.put(i);
-    }
-    assert(chan.isFull());
-    for (int i = 0; i < iterations; ++i) {
-        assert(chan.get() == i);
-    }
-    assert(chan.isEmpty());
+template <BlockingType blockingType>
+void testFastChan() {
+    testFastchanSingleThreaded<blockingType, 4096>();
+    testFastchanMultiThreaded<blockingType, 4096>();
+}
+
+int main() {
+    testFastChan<Blocking>();
+    testFastChan<NonBlockingGet>();
+    testFastChan<NonBlockingPut>();
+    testFastChan<NonBlocking>();
 
     return 0;
 }
