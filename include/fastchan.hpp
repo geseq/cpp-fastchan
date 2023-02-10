@@ -46,7 +46,7 @@ class FastChan {
 
     T get() noexcept {
         auto my_index = reader_index_.load(std::memory_order_relaxed);
-        while (my_index + 1 > next_free_index_.load(std::memory_order_acquire)) {
+        while (my_index >= next_free_index_.load(std::memory_order_acquire)) {
             std::this_thread::yield();
         }
 
@@ -57,7 +57,7 @@ class FastChan {
 
     std::optional<T> getWithoutBlocking() noexcept {
         auto my_index = reader_index_.load(std::memory_order_relaxed);
-        if (my_index + 1 > next_free_index_.load(std::memory_order_acquire)) {
+        if (my_index >= next_free_index_.load(std::memory_order_acquire)) {
             return std::nullopt;
         }
 
@@ -67,20 +67,20 @@ class FastChan {
     }
 
     void empty() noexcept {
-        next_free_index_.store(1, std::memory_order_release);
-        reader_index_.store(1, std::memory_order_release);
+        next_free_index_.store(0, std::memory_order_release);
+        reader_index_.store(0, std::memory_order_release);
     }
 
     std::size_t size() const noexcept { return next_free_index_.load(std::memory_order_acquire) - reader_index_.load(std::memory_order_acquire); }
 
-    bool isEmpty() const noexcept { return reader_index_.load(std::memory_order_acquire) > next_free_index_.load(std::memory_order_acquire) - 1; }
+    bool isEmpty() const noexcept { return reader_index_.load(std::memory_order_acquire) >= next_free_index_.load(std::memory_order_acquire); }
 
     bool isFull() const noexcept { return next_free_index_.load(std::memory_order_relaxed) > (reader_index_.load(std::memory_order_acquire) + index_mask_); }
 
    private:
     const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
-    alignas(64) std::atomic<std::size_t> reader_index_{1};
-    alignas(64) std::atomic<std::size_t> next_free_index_{1};
+    alignas(64) std::atomic<std::size_t> reader_index_{0};
+    alignas(64) std::atomic<std::size_t> next_free_index_{0};
     alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 };
 
