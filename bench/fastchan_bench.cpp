@@ -1,3 +1,5 @@
+#include <benchmark/benchmark.h>
+
 #include <chrono>
 #include <fastchan.hpp>
 #include <iostream>
@@ -7,289 +9,246 @@
 #include "boost/lockfree/spsc_queue.hpp"
 
 template <size_t min_size>
-void benchmarkFastChanPut(int n) {
+static void FastChan_BlockingBoth_Put(benchmark::State& state) {
     fastchan::FastChan<uint8_t, min_size> c;
-
+    std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
-        for (int i = 0; i < n; i++) {
-            c.get();
+        while (shouldRun) {
+            auto&& it = c.get();
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < n; i++) {
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
         c.put(0);
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    shouldRun = false;
+
+    // clear any blocks
+    c.putWithoutBlocking(0);
 
     reader.join();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkFastChan-Put" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
-template <size_t min_size>
-void benchmarkFastChanGet(int n) {
-    fastchan::FastChan<uint8_t, min_size> c;
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 16);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 64);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 256);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 1024);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 4096);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 16'384);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 65'536);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 262'144);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Put, 1'048'576);
 
+template <size_t min_size>
+static void FastChan_BlockingBoth_Get(benchmark::State& state) {
+    fastchan::FastChan<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
-        for (int i = 0; i < n; i++) {
+        while (shouldRun) {
             c.put(0);
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < n; i++) {
-        c.get();
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        auto&& it = c.get();
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    shouldRun.store(false);
 
+    // clear any blocks
+    c.getWithoutBlocking();
     reader.join();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkFastChan-Get" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
-template <size_t min_size>
-void benchmarkFastChanPutNonBlockingGet(int n) {
-    fastchan::FastChan<uint8_t, min_size> c;
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 16);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 64);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 256);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 1024);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 4096);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 16'384);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 65'536);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 262'144);
+BENCHMARK_TEMPLATE(FastChan_BlockingBoth_Get, 1'048'576);
 
+template <size_t min_size>
+static void FastChan_NonBlockingGet_Put(benchmark::State& state) {
+    fastchan::FastChan<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
-        for (int i = 0; i < n;) {
-            if (c.getWithoutBlocking()) {
-                ++i;
-            }
+        while (shouldRun) {
+            auto&& it = c.getWithoutBlocking();
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < n; ++i) {
-        c.put(1);
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        c.put(0);
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    shouldRun = false;
+
+    // clear any blocks
+    c.putWithoutBlocking(0);
 
     reader.join();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkFastChan-NonBlockingGet-Put" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
-template <size_t min_size>
-void benchmarkFastChanGetNonBlockingGet(int n) {
-    fastchan::FastChan<uint8_t, min_size> c;
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 16);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 64);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 256);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 1024);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 4096);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 16'384);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 65'536);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 262'144);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Put, 1'048'576);
 
+template <size_t min_size>
+static void FastChan_NonBlockingGet_Get(benchmark::State& state) {
+    fastchan::FastChan<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
-        for (int i = 0; i < n; ++i) {
-            c.put(1);
+        while (shouldRun) {
+            c.put(0);
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < n;) {
-        if (c.getWithoutBlocking()) {
-            ++i;
-        }
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        auto&& it = c.getWithoutBlocking();
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    shouldRun = false;
 
+    // clear any blocks
+    c.getWithoutBlocking();
     reader.join();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkFastChan-NonBlockingGet-Get" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
-template <size_t min_size>
-void benchmarkFastChanNonBlockingPut(int n) {
-    fastchan::FastChan<uint8_t, min_size> c;
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 16);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 64);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 256);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 1024);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 4096);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 16'384);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 65'536);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 262'144);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingGet_Get, 1'048'576);
 
+template <size_t min_size>
+static void FastChan_NonBlockingBoth_Put(benchmark::State& state) {
+    fastchan::FastChan<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
-        for (int i = 0; i < n;) {
-            if (c.getWithoutBlocking()) {
-                ++i;
-            }
+        while (shouldRun) {
+            auto&& it = c.getWithoutBlocking();
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < n;) {
-        if (c.putWithoutBlocking(1)) {
-            ++i;
-        }
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        c.putWithoutBlocking(0);
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    shouldRun = false;
 
     reader.join();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkFastChanNonBlocking-Put" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
-template <size_t min_size>
-void benchmarkFastChanNonBlockingGet(int n) {
-    fastchan::FastChan<uint8_t, min_size> c;
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 16);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 64);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 256);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 1024);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 4096);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 16'384);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 65'536);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 262'144);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Put, 1'048'576);
 
+template <size_t min_size>
+static void FastChan_NonBlockingBoth_Get(benchmark::State& state) {
+    fastchan::FastChan<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
-        for (int i = 0; i < n;) {
-            if (c.putWithoutBlocking(1)) {
-                ++i;
-            }
+        while (shouldRun) {
+            c.putWithoutBlocking(0);
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < n;) {
-        if (c.getWithoutBlocking()) {
-            ++i;
-        }
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        auto&& it = c.getWithoutBlocking();
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    shouldRun = false;
 
     reader.join();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkFastChanNonBlocking-Get" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 16);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 64);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 256);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 1024);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 4096);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 16'384);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 65'536);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 262'144);
+BENCHMARK_TEMPLATE(FastChan_NonBlockingBoth_Get, 1'048'576);
+
 template <size_t min_size>
-void benchmarkBoostSPSCPut(int n) {
+static void BoostSPSC_Put(benchmark::State& state) {
     boost::lockfree::spsc_queue<uint8_t, boost::lockfree::capacity<min_size>> c;
-
+    std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
-        for (int i = 0; i < n;) {
-            if (c.pop()) {
-                ++i;
-            }
+        while (shouldRun) {
+            auto&& it = c.pop();
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < n;) {
-        if (c.push(1)) {
-            ++i;
-        }
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        c.push(0);
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    shouldRun = false;
 
     reader.join();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkBoostSPSC-Put" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
+
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 16);
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 64);
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 256);
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 1024);
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 4096);
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 16'384);
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 65'536);
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 262'144);
+BENCHMARK_TEMPLATE(BoostSPSC_Put, 1'048'576);
 
 template <size_t min_size>
-void benchmarkBoostSPSCGet(int n) {
+static void BoostSPSC_Get(benchmark::State& state) {
     boost::lockfree::spsc_queue<uint8_t, boost::lockfree::capacity<min_size>> c;
-
+    std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
-        for (int i = 0; i < n;) {
-            if (c.push(1)) {
-                ++i;
-            }
+        while (shouldRun) {
+            c.push(0);
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < n;) {
-        if (c.pop()) {
-            ++i;
-        }
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        // NOTE: problem here is that this could be a no op throughput the bench
+        auto&& it = c.pop();
     }
-    auto end = std::chrono::high_resolution_clock::now();
-
+    shouldRun = false;
     reader.join();
-
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    std::cout << "BenchmarkBoostSPSC-Get" << min_size << "\t" << n << "\t" << duration / n << " ns/op" << std::endl;
 }
 
-int main() {
-    auto n = 5'000'000;
-    benchmarkFastChanPut<16>(n);
-    benchmarkFastChanPut<64>(n);
-    benchmarkFastChanPut<256>(n);
-    benchmarkFastChanPut<1024>(n);
-    benchmarkFastChanPut<4096>(n);
-    benchmarkFastChanPut<16'384>(n);
-    benchmarkFastChanPut<65'536>(n);
-    benchmarkFastChanPut<262'144>(n);
-    benchmarkFastChanPut<1'048'576>(n);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 16);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 64);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 256);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 1024);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 4096);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 16'384);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 65'536);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 262'144);
+BENCHMARK_TEMPLATE(BoostSPSC_Get, 1'048'576);
 
-    benchmarkFastChanGet<16>(n);
-    benchmarkFastChanGet<64>(n);
-    benchmarkFastChanGet<256>(n);
-    benchmarkFastChanGet<1024>(n);
-    benchmarkFastChanGet<4096>(n);
-    benchmarkFastChanGet<16'384>(n);
-    benchmarkFastChanGet<65'536>(n);
-    benchmarkFastChanGet<262'144>(n);
-    benchmarkFastChanGet<1'048'576>(n);
-
-    std::cout << std::endl;
-
-    benchmarkFastChanPutNonBlockingGet<16>(n);
-    benchmarkFastChanPutNonBlockingGet<64>(n);
-    benchmarkFastChanPutNonBlockingGet<256>(n);
-    benchmarkFastChanPutNonBlockingGet<1024>(n);
-    benchmarkFastChanPutNonBlockingGet<4096>(n);
-    benchmarkFastChanPutNonBlockingGet<16'384>(n);
-    benchmarkFastChanPutNonBlockingGet<65'536>(n);
-    benchmarkFastChanPutNonBlockingGet<262'144>(n);
-    benchmarkFastChanPutNonBlockingGet<1'048'576>(n);
-
-    benchmarkFastChanGetNonBlockingGet<16>(n);
-    benchmarkFastChanGetNonBlockingGet<64>(n);
-    benchmarkFastChanGetNonBlockingGet<256>(n);
-    benchmarkFastChanGetNonBlockingGet<1024>(n);
-    benchmarkFastChanGetNonBlockingGet<4096>(n);
-    benchmarkFastChanGetNonBlockingGet<16'384>(n);
-    benchmarkFastChanGetNonBlockingGet<65'536>(n);
-    benchmarkFastChanGetNonBlockingGet<262'144>(n);
-    benchmarkFastChanGetNonBlockingGet<1'048'576>(n);
-
-    std::cout << std::endl;
-
-    benchmarkFastChanNonBlockingPut<16>(n);
-    benchmarkFastChanNonBlockingPut<64>(n);
-    benchmarkFastChanNonBlockingPut<256>(n);
-    benchmarkFastChanNonBlockingPut<1024>(n);
-    benchmarkFastChanNonBlockingPut<4096>(n);
-    benchmarkFastChanNonBlockingPut<16'384>(n);
-    benchmarkFastChanNonBlockingPut<65'536>(n);
-    benchmarkFastChanNonBlockingPut<262'144>(n);
-    benchmarkFastChanNonBlockingPut<1'048'576>(n);
-
-    benchmarkFastChanNonBlockingGet<16>(n);
-    benchmarkFastChanNonBlockingGet<64>(n);
-    benchmarkFastChanNonBlockingGet<256>(n);
-    benchmarkFastChanNonBlockingGet<1024>(n);
-    benchmarkFastChanNonBlockingGet<4096>(n);
-    benchmarkFastChanNonBlockingGet<16'384>(n);
-    benchmarkFastChanNonBlockingGet<65'536>(n);
-    benchmarkFastChanNonBlockingGet<262'144>(n);
-    benchmarkFastChanNonBlockingGet<1'048'576>(n);
-
-    std::cout << std::endl;
-
-    benchmarkBoostSPSCPut<16>(n);
-    benchmarkBoostSPSCPut<64>(n);
-    benchmarkBoostSPSCPut<256>(n);
-    benchmarkBoostSPSCPut<1024>(n);
-    benchmarkBoostSPSCPut<4096>(n);
-    benchmarkBoostSPSCPut<16'384>(n);
-    benchmarkBoostSPSCPut<65'536>(n);
-    benchmarkBoostSPSCPut<262'144>(n);
-    benchmarkBoostSPSCPut<1'048'576>(n);
-
-    benchmarkBoostSPSCGet<16>(n);
-    benchmarkBoostSPSCGet<64>(n);
-    benchmarkBoostSPSCGet<256>(n);
-    benchmarkBoostSPSCGet<1024>(n);
-    benchmarkBoostSPSCGet<4096>(n);
-    benchmarkBoostSPSCGet<16'384>(n);
-    benchmarkBoostSPSCGet<65'536>(n);
-    benchmarkBoostSPSCGet<262'144>(n);
-    benchmarkBoostSPSCGet<1'048'576>(n);
-
-    return 0;
-}
-
+// Run the benchmark
+BENCHMARK_MAIN();

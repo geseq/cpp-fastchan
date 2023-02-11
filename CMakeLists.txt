@@ -13,7 +13,7 @@ set_target_properties(fastchan PROPERTIES LINKER_LANGUAGE CXX)
 find_package(Threads)
 
 
-option(BENCH "run benchmarks" OFF)
+option(BENCHMARK_ENABLE_TESTING "run benchmarks" OFF)
 
 FILE(GLOB tests ${PROJECT_SOURCE_DIR}/test/*)
 FOREACH (test ${tests})
@@ -27,9 +27,16 @@ FOREACH (test ${tests})
 ENDFOREACH ()
 
 
-if (BENCH)
+if (BENCHMARK_ENABLE_TESTING)
     include(cmake/CPM.cmake)
     CPMUsePackageLock(package-lock.cmake)
+
+    CPMAddPackage( NAME benchmark GITHUB_REPOSITORY google/benchmark VERSION 1.5.2 OPTIONS "BENCHMARK_ENABLE_TESTING Off")
+
+    if(benchmark_ADDED)
+        # enable c++11 to avoid compilation errors
+        set_target_properties(benchmark PROPERTIES CXX_STANDARD 17)
+    endif()
 
     set(Boost_USE_STATIC_LIBS ON)
     set(Boost_USE_MULTITHREADED ON)
@@ -44,6 +51,7 @@ if (BENCH)
         add_executable(${test_name} ${PROJECT_SOURCE_DIR}/bench/${test_name})
         target_link_libraries(${test_name} ${CMAKE_THREAD_LIBS_INIT})
         target_link_libraries(${test_name} PRIVATE Boost::lockfree)
+        target_link_libraries(${test_name} PRIVATE benchmark::benchmark)
         target_include_directories(${test_name} PUBLIC ${PROJECT_SOURCE_DIR}/include)
         add_test(${test_name} ${test_name})
         set_property(TEST ${test_name} PROPERTY LABELS "bench")
