@@ -24,49 +24,47 @@ class FastChan {
     FastChan() = default;
 
     void put(const T &value) noexcept {
-        auto my_index = next_free_index_.load(std::memory_order_relaxed);
-        while (my_index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
+        while (next_free_index_2_ > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
             std::this_thread::yield();
         }
 
-        contents_[my_index & index_mask_] = value;
-        next_free_index_.store(my_index + 1, std::memory_order_release);
+        contents_[next_free_index_2_ & index_mask_] = value;
+        next_free_index_.store(++next_free_index_2_, std::memory_order_release);
     }
 
     bool putWithoutBlocking(const T &value) noexcept {
-        auto my_index = next_free_index_.load(std::memory_order_relaxed);
-        if (my_index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
+        if (next_free_index_2_ > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
             return false;
         }
 
-        contents_[my_index & index_mask_] = value;
-        next_free_index_.store(my_index + 1, std::memory_order_release);
+        contents_[next_free_index_2_ & index_mask_] = value;
+        next_free_index_.store(++next_free_index_2_, std::memory_order_release);
         return true;
     }
 
     T get() noexcept {
-        auto my_index = reader_index_.load(std::memory_order_relaxed);
-        while (my_index >= next_free_index_.load(std::memory_order_acquire)) {
+        while (reader_index_2_ >= next_free_index_.load(std::memory_order_acquire)) {
             std::this_thread::yield();
         }
 
-        auto contents = contents_[my_index & index_mask_];
-        reader_index_.store(my_index + 1, std::memory_order_release);
+        auto contents = contents_[reader_index_2_ & index_mask_];
+        reader_index_.store(++reader_index_2_, std::memory_order_release);
         return contents;
     }
 
     std::optional<T> getWithoutBlocking() noexcept {
-        auto my_index = reader_index_.load(std::memory_order_relaxed);
-        if (my_index >= next_free_index_.load(std::memory_order_acquire)) {
+        if (reader_index_2_ >= next_free_index_.load(std::memory_order_acquire)) {
             return std::nullopt;
         }
 
-        auto contents = contents_[my_index & index_mask_];
-        reader_index_.store(my_index + 1, std::memory_order_release);
+        auto contents = contents_[reader_index_2_ & index_mask_];
+        reader_index_.store(++reader_index_2_, std::memory_order_release);
         return contents;
     }
 
     void empty() noexcept {
+        reader_index_2_ = 0;
+        next_free_index_2_ = 0;
         next_free_index_.store(0, std::memory_order_release);
         reader_index_.store(0, std::memory_order_release);
     }
@@ -79,6 +77,8 @@ class FastChan {
 
    private:
     const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
+    alignas(64) std::size_t next_free_index_2_{0};
+    alignas(64) std::size_t reader_index_2_{0};
     alignas(64) std::atomic<std::size_t> reader_index_{0};
     alignas(64) std::atomic<std::size_t> next_free_index_{0};
     alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
