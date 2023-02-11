@@ -19,9 +19,9 @@ constexpr size_t roundUpNextPowerOfTwo(size_t v) {
 }
 
 template <typename T, size_t min_size>
-class FastChan {
+class SPSC {
    public:
-    FastChan() = default;
+    SPSC() = default;
 
     void put(const T &value) noexcept {
         while (next_free_index_2_ > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
