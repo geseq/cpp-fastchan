@@ -1,7 +1,8 @@
 #include <benchmark/benchmark.h>
 
+#include <atomic>
 #include <chrono>
-#include <iostream>
+#include <mpsc.hpp>
 #include <spsc.hpp>
 #include <thread>
 
@@ -250,5 +251,394 @@ BENCHMARK_TEMPLATE(BoostSPSC_Get, 65'536);
 BENCHMARK_TEMPLATE(BoostSPSC_Get, 262'144);
 BENCHMARK_TEMPLATE(BoostSPSC_Get, 1'048'576);
 
+template <size_t min_size, int num_producers>
+static void MPSC_BlockingBoth_Put(benchmark::State& state) {
+    fastchan::MPSC<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
+    std::thread reader([&]() {
+        while (shouldRun) {
+            auto&& it = c.get();
+        }
+    });
+
+    // create n-1 producers
+    std::array<std::thread, num_producers - 1> producers;
+    for (auto i = 0; i < num_producers - 1; ++i) {
+        producers[i] = std::thread([&]() {
+            while (shouldRun) {
+                c.put(0);
+            }
+        });
+    }
+
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        c.put(0);
+    }
+
+    shouldRun = false;
+
+    // clear any blocks
+    while (c.getWithoutBlocking()) {
+    }
+    while (c.putWithoutBlocking(0)) {
+    }
+
+    for (auto i = 0; i < num_producers - 1; ++i) {
+        producers[i].join();
+    }
+
+    reader.join();
+}
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 1);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 2);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 5);
+
+template <size_t min_size, int num_producers>
+static void MPSC_BlockingBoth_Get(benchmark::State& state) {
+    fastchan::MPSC<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
+    std::array<std::thread, num_producers> producers;
+    for (auto i = 0; i < num_producers; ++i) {
+        producers[i] = std::thread([&]() {
+            while (shouldRun) {
+                c.put(0);
+            }
+        });
+    }
+
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        auto&& it = c.get();
+    }
+
+    shouldRun = false;
+
+    // clear any blocks
+    while (c.getWithoutBlocking()) {
+    }
+    while (c.putWithoutBlocking(0)) {
+    }
+
+    for (auto i = 0; i < num_producers; ++i) {
+        producers[i].join();
+    }
+}
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 1);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 2);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 5);
+
+template <size_t min_size, int num_producers>
+static void MPSC_NonBlockingGet_Put(benchmark::State& state) {
+    fastchan::MPSC<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
+    std::thread reader([&]() {
+        while (shouldRun.load(std::memory_order_relaxed)) {
+            auto&& it = c.getWithoutBlocking();
+        }
+    });
+
+    // create n-1 producers
+    std::array<std::thread, num_producers - 1> producers;
+    for (auto i = 0; i < num_producers - 1; ++i) {
+        producers[i] = std::thread([&]() {
+            while (shouldRun) {
+                c.put(0);
+            }
+        });
+    }
+
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        c.put(0);
+    }
+    shouldRun = false;
+
+    // clear any blocks
+    while (c.getWithoutBlocking()) {
+    }
+    while (c.putWithoutBlocking(0)) {
+    }
+
+    for (auto i = 0; i < num_producers - 1; ++i) {
+        producers[i].join();
+    }
+    reader.join();
+}
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 16, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 64, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 256, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 1024, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 4096, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 16'384, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 65'536, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 262'144, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 1'048'576, 1);
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 16, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 64, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 256, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 1024, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 4096, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 16'384, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 65'536, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 262'144, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 1'048'576, 2);
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 16, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 64, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 256, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 1024, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 4096, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 16'384, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 65'536, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 262'144, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 1'048'576, 5);
+
+template <size_t min_size, int num_producers>
+static void MPSC_NonBlockingGet_Get(benchmark::State& state) {
+    fastchan::MPSC<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
+    // create n producers
+    std::array<std::thread, num_producers> producers;
+    for (auto i = 0; i < num_producers; ++i) {
+        producers[i] = std::thread([&]() {
+            while (shouldRun) {
+                c.put(0);
+            }
+        });
+    }
+
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        auto&& it = c.getWithoutBlocking();
+    }
+    shouldRun = false;
+
+    // clear any blocks
+    while (c.getWithoutBlocking()) {
+    }
+    while (c.putWithoutBlocking(0)) {
+    }
+
+    for (auto i = 0; i < num_producers; ++i) {
+        producers[i].join();
+    }
+}
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 16, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 64, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 256, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 1024, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 4096, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 16'384, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 65'536, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 262'144, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 1'048'576, 1);
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 16, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 64, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 256, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 1024, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 4096, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 16'384, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 65'536, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 262'144, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 1'048'576, 2);
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 16, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 64, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 256, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 1024, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 4096, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 16'384, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 65'536, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 262'144, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 1'048'576, 5);
+
+template <size_t min_size, int num_producers>
+static void MPSC_NonBlockingBoth_Put(benchmark::State& state) {
+    fastchan::MPSC<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
+    std::thread reader([&]() {
+        while (shouldRun) {
+            auto&& it = c.getWithoutBlocking();
+        }
+    });
+
+    // create n-1 producers
+    std::array<std::thread, num_producers - 1> producers;
+    for (auto i = 0; i < num_producers - 1; ++i) {
+        producers[i] = std::thread([&]() {
+            while (shouldRun) {
+                c.putWithoutBlocking(0);
+            }
+        });
+    }
+
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        c.putWithoutBlocking(0);
+    }
+    shouldRun = false;
+
+    // clear any blocks
+    while (c.getWithoutBlocking()) {
+    }
+    while (c.putWithoutBlocking(0)) {
+    }
+
+    for (auto i = 0; i < num_producers - 1; ++i) {
+        producers[i].join();
+    }
+    reader.join();
+}
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 16, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 64, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 256, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 1024, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 4096, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 16'384, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 65'536, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 262'144, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 1'048'576, 1);
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 16, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 64, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 256, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 1024, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 4096, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 16'384, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 65'536, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 262'144, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 1'048'576, 2);
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 16, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 64, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 256, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 1024, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 4096, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 16'384, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 65'536, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 262'144, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 1'048'576, 5);
+
+template <size_t min_size, int num_producers>
+static void MPSC_NonBlockingBoth_Get(benchmark::State& state) {
+    fastchan::MPSC<uint8_t, min_size> c;
+    std::atomic_bool shouldRun = true;
+    std::array<std::thread, num_producers> producers;
+    for (auto i = 0; i < num_producers; ++i) {
+        producers[i] = std::thread([&]() {
+            while (shouldRun) {
+                c.putWithoutBlocking(0);
+            }
+        });
+    }
+
+    // Code inside this loop is measured repeatedly
+    for (auto _ : state) {
+        auto&& it = c.getWithoutBlocking();
+    }
+    shouldRun = false;
+
+    // clear any blocks
+    while (c.getWithoutBlocking()) {
+    }
+    while (c.putWithoutBlocking(0)) {
+    }
+
+    for (auto i = 0; i < num_producers; ++i) {
+        producers[i].join();
+    }
+}
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 16, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 64, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 256, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 1024, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 4096, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 16'384, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 65'536, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 262'144, 1);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 1'048'576, 1);
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 16, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 64, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 256, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 1024, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 4096, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 16'384, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 65'536, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 262'144, 2);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 1'048'576, 2);
+
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 16, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 64, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 256, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 1024, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 4096, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 16'384, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 65'536, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 262'144, 5);
+BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Get, 1'048'576, 5);
+
 // Run the benchmark
 BENCHMARK_MAIN();
+

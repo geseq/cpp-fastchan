@@ -1,11 +1,6 @@
-#include <strings.h>
-#include <unistd.h>
-
 #include <array>
 #include <atomic>
-#include <iostream>
 #include <optional>
-#include <ostream>
 #include <thread>
 
 #include "common.hpp"
