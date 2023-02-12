@@ -1,8 +1,8 @@
 #include <benchmark/benchmark.h>
 
 #include <chrono>
-#include <fastchan.hpp>
 #include <iostream>
+#include <spsc.hpp>
 #include <thread>
 
 #include "boost/lockfree/policies.hpp"

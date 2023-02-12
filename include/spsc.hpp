@@ -1,22 +1,11 @@
 #include <array>
 #include <atomic>
-#include <limits>
 #include <optional>
 #include <thread>
 
+#include "common.hpp"
+
 namespace fastchan {
-
-#ifndef CHAR_BIT
-#define CHAR_BIT __CHAR_BIT__
-#endif
-
-constexpr size_t roundUpNextPowerOfTwo(size_t v) {
-    v--;
-    for (size_t i = 1; i < sizeof(v) * CHAR_BIT; i *= 2) {
-        v |= v >> i;
-    }
-    return ++v;
-}
 
 template <typename T, size_t min_size>
 class SPSC {
@@ -83,6 +72,5 @@ class SPSC {
     alignas(64) std::atomic<std::size_t> next_free_index_{0};
     alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 };
-
 }  // namespace fastchan
 

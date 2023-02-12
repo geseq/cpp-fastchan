@@ -1,6 +1,7 @@
+#include <algorithm>
 #include <cassert>
-#include <fastchan.hpp>
 #include <iostream>
+#include <mpsc.hpp>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -8,13 +9,13 @@ using namespace std::chrono_literals;
 enum BlockingType { NonBlocking, NonBlockingPut, NonBlockingGet, Blocking };
 
 template <BlockingType blockingType, int iterations>
-void testSPSCSingleThreaded() {
+void testMPSCSingleThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, chan_size> chan;
+    fastchan::MPSC<int, chan_size> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
-    // Test put and read with a single thread
+    // Test filling up with a single thread
     for (int i = 0; i < iterations; ++i) {
         if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
             assert(chan.putWithoutBlocking(i));
@@ -30,6 +31,7 @@ void testSPSCSingleThreaded() {
             assert(chan.isFull() == true);
         }
     }
+
     assert(chan.size() == iterations);
     assert(chan.isFull() == true);
     assert(chan.isEmpty() == false);
@@ -51,7 +53,8 @@ void testSPSCSingleThreaded() {
         if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
             assert(chan.getWithoutBlocking() == i);
         } else {
-            assert(chan.get() == i);
+            auto got = chan.get();
+            assert(got == i);
         }
     }
 
@@ -63,9 +66,9 @@ void testSPSCSingleThreaded() {
 }
 
 template <BlockingType blockingType, int iterations>
-void testSPSCMultiThreaded() {
+void testMPSCMultiThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, chan_size> chan;
+    fastchan::MPSC<int, chan_size> chan;
 
     // Test put and get with multiple threads
     std::thread producer([&] {
@@ -107,16 +110,18 @@ void testSPSCMultiThreaded() {
 }
 
 template <BlockingType blockingType>
-void testSPSC() {
-    testSPSCSingleThreaded<blockingType, 4096>();
-    testSPSCMultiThreaded<blockingType, 4096>();
+void testMPSC() {
+    testMPSCSingleThreaded<blockingType, 4096>();
+    testMPSCMultiThreaded<blockingType, 4096>();
+
+    // TODO: add many threads test
 }
 
 int main() {
-    testSPSC<Blocking>();
-    testSPSC<NonBlockingGet>();
-    testSPSC<NonBlockingPut>();
-    testSPSC<NonBlocking>();
+    testMPSC<Blocking>();
+    testMPSC<NonBlockingGet>();
+    testMPSC<NonBlockingPut>();
+    testMPSC<NonBlocking>();
 
     return 0;
 }
