@@ -1,5 +1,8 @@
 #include <limits>
 
+#ifndef FASTCHANCOMMON_HPP
+#define FASTCHANCOMMON_HPP
+
 namespace fastchan {
 
 #ifndef CHAR_BIT
@@ -14,3 +17,5 @@ constexpr size_t roundUpNextPowerOfTwo(size_t v) {
     return ++v;
 }
 }  // namespace fastchan
+
+#endif

@@ -25,10 +25,8 @@ class MPSC {
 
         auto write_index = writer_index_.fetch_add(1, std::memory_order_acq_rel);
         contents_[write_index & index_mask_] = value;
-        while (!last_committed_index_.compare_exchange_strong(write_index, write_index + 1)) {
+        while (!last_committed_index_.compare_exchange_weak(write_index, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
             // commit in the correct order to avoid problems
-            // TODO: maybe this shouldn't yield
-            std::this_thread::yield();
         }
     }
 
@@ -41,10 +39,8 @@ class MPSC {
 
         auto write_index = writer_index_.fetch_add(1, std::memory_order_acq_rel);
         contents_[write_index & index_mask_] = value;
-        while (!last_committed_index_.compare_exchange_strong(write_index, write_index + 1)) {
+        while (!last_committed_index_.compare_exchange_weak(write_index, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
             // commit in the correct order to avoid problems
-            // TODO: maybe this shouldn't yield
-            std::this_thread::yield();
         }
         return true;
     }
