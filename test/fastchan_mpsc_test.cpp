@@ -170,6 +170,12 @@ void testMPSCMultiThreadedMultiProducer() {
 
 template <BlockingType blockingType>
 void testMPSC() {
+    testMPSCSingleThreaded<blockingType, 4>();
+    testMPSCMultiThreadedSingleProducer<blockingType, 4>();
+    testMPSCMultiThreadedMultiProducer<blockingType, 4, 3>();
+    testMPSCMultiThreadedMultiProducer<blockingType, 4, 5>();
+    testMPSCMultiThreadedMultiProducer<blockingType, 4, 15>();
+
     testMPSCSingleThreaded<blockingType, 4096>();
     testMPSCMultiThreadedSingleProducer<blockingType, 4096>();
     testMPSCMultiThreadedMultiProducer<blockingType, 4096, 3>();
