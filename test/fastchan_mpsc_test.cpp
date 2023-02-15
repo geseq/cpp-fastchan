@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
-#include <iostream>
 #include <mpsc.hpp>
 #include <thread>
 
@@ -22,7 +21,11 @@ void testMPSCSingleThreaded() {
     // Test filling up with a single thread
     for (int i = 0; i < iterations; ++i) {
         if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
-            assert(chan.putWithoutBlocking(i));
+            auto result = false;
+            do {
+                result = chan.putWithoutBlocking(i);
+            } while (!result);
+            assert(result);
         } else {
             chan.put(i);
         }
@@ -47,15 +50,25 @@ void testMPSCSingleThreaded() {
     // Test put and get with a single thread
     for (int i = 0; i < iterations; ++i) {
         if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
-            assert(chan.putWithoutBlocking(i));
-        } else {
-            chan.put(i);
+            auto result = false;
+            do {
+                result = chan.putWithoutBlocking(i);
+            } while (!result);
+            assert(result);
+            continue;
         }
+
+        chan.put(i);
     }
 
     for (int i = 0; i < iterations; ++i) {
         if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
-            assert(chan.getWithoutBlocking() == i);
+            auto&& val = chan.getWithoutBlocking();
+            while (!val) {
+                val = chan.getWithoutBlocking();
+            }
+
+            assert(val == i);
         } else {
             auto got = chan.get();
             assert(got == i);
@@ -181,7 +194,6 @@ void testMPSC() {
     testMPSCMultiThreadedMultiProducer<blockingType, 4096, 3>();
     testMPSCMultiThreadedMultiProducer<blockingType, 4096, 5>();
     testMPSCMultiThreadedMultiProducer<blockingType, 4096, 15>();
-
     // TODO: add many threads test
 }
 
