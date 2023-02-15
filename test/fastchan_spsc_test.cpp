@@ -1,6 +1,6 @@
 #include <cassert>
-#include <fastchan.hpp>
 #include <iostream>
+#include <spsc.hpp>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -8,9 +8,9 @@ using namespace std::chrono_literals;
 enum BlockingType { NonBlocking, NonBlockingPut, NonBlockingGet, Blocking };
 
 template <BlockingType blockingType, int iterations>
-void testFastchanSingleThreaded() {
+void testSPSCSingleThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::FastChan<int, chan_size> chan;
+    fastchan::SPSC<int, chan_size> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
@@ -63,9 +63,9 @@ void testFastchanSingleThreaded() {
 }
 
 template <BlockingType blockingType, int iterations>
-void testFastchanMultiThreaded() {
+void testSPSCMultiThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::FastChan<int, chan_size> chan;
+    fastchan::SPSC<int, chan_size> chan;
 
     // Test put and get with multiple threads
     std::thread producer([&] {
@@ -90,6 +90,7 @@ void testFastchanMultiThreaded() {
                     val = chan.getWithoutBlocking();
                 }
 
+                assert(*val == i);
                 ++i;
                 continue;
             }
@@ -107,16 +108,16 @@ void testFastchanMultiThreaded() {
 }
 
 template <BlockingType blockingType>
-void testFastChan() {
-    testFastchanSingleThreaded<blockingType, 4096>();
-    testFastchanMultiThreaded<blockingType, 4096>();
+void testSPSC() {
+    testSPSCSingleThreaded<blockingType, 4096>();
+    testSPSCMultiThreaded<blockingType, 4096>();
 }
 
 int main() {
-    testFastChan<Blocking>();
-    testFastChan<NonBlockingGet>();
-    testFastChan<NonBlockingPut>();
-    testFastChan<NonBlocking>();
+    testSPSC<Blocking>();
+    testSPSC<NonBlockingGet>();
+    testSPSC<NonBlockingPut>();
+    testSPSC<NonBlocking>();
 
     return 0;
 }

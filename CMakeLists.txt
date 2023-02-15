@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(fastchan include/fastchan.hpp)
+add_library(fastchan include/spsc.hpp include/mpsc.hpp)
 set_target_properties(fastchan PROPERTIES LINKER_LANGUAGE CXX)
 
 find_package(Threads)
