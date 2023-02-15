@@ -90,6 +90,7 @@ void testSPSCMultiThreaded() {
                     val = chan.getWithoutBlocking();
                 }
 
+                assert(*val == i);
                 ++i;
                 continue;
             }

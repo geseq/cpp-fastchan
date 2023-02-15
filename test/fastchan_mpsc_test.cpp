@@ -97,6 +97,7 @@ void testMPSCMultiThreadedSingleProducer() {
                     val = chan.getWithoutBlocking();
                 }
 
+                assert(*val == i);
                 ++i;
                 continue;
             }

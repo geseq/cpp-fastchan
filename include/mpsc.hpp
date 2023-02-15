@@ -28,7 +28,7 @@ class MPSC {
     bool putWithoutBlocking(const T &value) noexcept {
         auto index = next_free_index_.fetch_add(1, std::memory_order_acq_rel);
         if (index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
-            next_free_index_.fetch_sub(std::memory_order_acq_rel);
+            next_free_index_.fetch_sub(1, std::memory_order_acq_rel);
             return false;
         }
 
