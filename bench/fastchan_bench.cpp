@@ -528,9 +528,6 @@ static void MPSC_NonBlockingBoth_Put(benchmark::State& state) {
             auto otherWork = 0;
             while (shouldRun) {
                 c.putWithoutBlocking(0);
-                for (i = 0; i < loop; i++) {
-                    benchmark::DoNotOptimize(otherWork += 1);
-                }
             }
         });
     }
@@ -623,9 +620,6 @@ static void MPSC_NonBlockingBoth_Get(benchmark::State& state) {
             auto otherWork = 0;
             while (shouldRun) {
                 c.putWithoutBlocking(0);
-                for (i = 0; i < loop; i++) {
-                    benchmark::DoNotOptimize(otherWork += 1);
-                }
             }
         });
     }
