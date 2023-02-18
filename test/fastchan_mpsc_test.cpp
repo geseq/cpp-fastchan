@@ -4,12 +4,15 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <iostream>
 #include <mpsc.hpp>
 #include <thread>
 
 using namespace std::chrono_literals;
 
 enum BlockingType { NonBlocking, NonBlockingPut, NonBlockingGet, Blocking };
+
+const auto IterationsMultiplier = 100;
 
 template <BlockingType blockingType, int iterations>
 void testMPSCSingleThreaded() {
@@ -32,7 +35,7 @@ void testMPSCSingleThreaded() {
 
         assert(chan.size() == i + 1);
         assert(chan.isEmpty() == false);
-        if (i < iterations - 1) {
+        if ((i + 1) % iterations != 0) {
             assert(chan.isFull() == false);
         } else {
             assert(chan.isFull() == true);
@@ -87,9 +90,10 @@ void testMPSCMultiThreadedSingleProducer() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::MPSC<int, chan_size> chan;
 
+    auto total_iterations = IterationsMultiplier * iterations;
     // Test put and get with multiple threads
     std::thread producer([&] {
-        for (int i = 1; i <= iterations * 2; ++i) {
+        for (int i = 1; i <= total_iterations; ++i) {
             if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
                 auto result = false;
                 do {
@@ -103,7 +107,7 @@ void testMPSCMultiThreadedSingleProducer() {
     });
 
     std::thread consumer([&] {
-        for (int i = 1; i <= iterations * 2;) {
+        for (int i = 1; i <= total_iterations;) {
             if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
                 auto&& val = chan.getWithoutBlocking();
                 while (!val) {
@@ -132,7 +136,7 @@ void testMPSCMultiThreadedMultiProducer() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::MPSC<int, chan_size> chan;
 
-    auto total_iterations = 2 * iterations;
+    auto total_iterations = IterationsMultiplier * iterations;
     uint64_t total = num_threads * (total_iterations * (total_iterations + 1) / 2);
 
     std::array<std::thread, num_threads> producers;
@@ -178,6 +182,7 @@ void testMPSCMultiThreadedMultiProducer() {
     }
     consumer.join();
 
+    assert(total == 0);
     assert(chan.size() == 0);
 }
 
