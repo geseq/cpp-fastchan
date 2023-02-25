@@ -11,7 +11,7 @@
 
 template <size_t min_size>
 static void SPSC_BlockingBoth_Put(benchmark::State& state) {
-    fastchan::SPSC<uint8_t, min_size> c;
+    fastchan::SPSC<uint8_t, fastchan::BlockingPutBlockingGet, min_size> c;
     std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
         while (shouldRun) {
@@ -26,7 +26,7 @@ static void SPSC_BlockingBoth_Put(benchmark::State& state) {
     shouldRun = false;
 
     // clear any blocks
-    c.putWithoutBlocking(0);
+    c.put(0);
 
     reader.join();
 }
@@ -43,7 +43,7 @@ BENCHMARK_TEMPLATE(SPSC_BlockingBoth_Put, 1'048'576);
 
 template <size_t min_size>
 static void SPSC_BlockingBoth_Get(benchmark::State& state) {
-    fastchan::SPSC<uint8_t, min_size> c;
+    fastchan::SPSC<uint8_t, fastchan::BlockingPutBlockingGet, min_size> c;
     std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
         while (shouldRun) {
@@ -58,7 +58,7 @@ static void SPSC_BlockingBoth_Get(benchmark::State& state) {
     shouldRun.store(false);
 
     // clear any blocks
-    c.getWithoutBlocking();
+    c.get();
     reader.join();
 }
 
@@ -74,11 +74,11 @@ BENCHMARK_TEMPLATE(SPSC_BlockingBoth_Get, 1'048'576);
 
 template <size_t min_size>
 static void SPSC_NonBlockingGet_Put(benchmark::State& state) {
-    fastchan::SPSC<uint8_t, min_size> c;
+    fastchan::SPSC<uint8_t, fastchan::BlockingPutNonBlockingGet, min_size> c;
     std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
         while (shouldRun) {
-            auto&& it = c.getWithoutBlocking();
+            auto&& it = c.get();
         }
     });
 
@@ -89,7 +89,7 @@ static void SPSC_NonBlockingGet_Put(benchmark::State& state) {
     shouldRun = false;
 
     // clear any blocks
-    c.putWithoutBlocking(0);
+    c.put(0);
 
     reader.join();
 }
@@ -106,7 +106,7 @@ BENCHMARK_TEMPLATE(SPSC_NonBlockingGet_Put, 1'048'576);
 
 template <size_t min_size>
 static void SPSC_NonBlockingGet_Get(benchmark::State& state) {
-    fastchan::SPSC<uint8_t, min_size> c;
+    fastchan::SPSC<uint8_t, fastchan::BlockingPutNonBlockingGet, min_size> c;
     std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
         while (shouldRun) {
@@ -116,12 +116,12 @@ static void SPSC_NonBlockingGet_Get(benchmark::State& state) {
 
     // Code inside this loop is measured repeatedly
     for (auto _ : state) {
-        auto&& it = c.getWithoutBlocking();
+        auto&& it = c.get();
     }
     shouldRun = false;
 
     // clear any blocks
-    c.getWithoutBlocking();
+    c.get();
     reader.join();
 }
 
@@ -137,17 +137,17 @@ BENCHMARK_TEMPLATE(SPSC_NonBlockingGet_Get, 1'048'576);
 
 template <size_t min_size>
 static void SPSC_NonBlockingBoth_Put(benchmark::State& state) {
-    fastchan::SPSC<uint8_t, min_size> c;
+    fastchan::SPSC<uint8_t, fastchan::NonBlockingPutNonBlockingGet, min_size> c;
     std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
         while (shouldRun) {
-            auto&& it = c.getWithoutBlocking();
+            auto&& it = c.get();
         }
     });
 
     // Code inside this loop is measured repeatedly
     for (auto _ : state) {
-        c.putWithoutBlocking(0);
+        c.put(0);
     }
     shouldRun = false;
 
@@ -166,17 +166,17 @@ BENCHMARK_TEMPLATE(SPSC_NonBlockingBoth_Put, 1'048'576);
 
 template <size_t min_size>
 static void SPSC_NonBlockingBoth_Get(benchmark::State& state) {
-    fastchan::SPSC<uint8_t, min_size> c;
+    fastchan::SPSC<uint8_t, fastchan::NonBlockingPutNonBlockingGet, min_size> c;
     std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
         while (shouldRun) {
-            c.putWithoutBlocking(0);
+            c.put(0);
         }
     });
 
     // Code inside this loop is measured repeatedly
     for (auto _ : state) {
-        auto&& it = c.getWithoutBlocking();
+        auto&& it = c.get();
     }
     shouldRun = false;
 
