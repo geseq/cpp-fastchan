@@ -5,19 +5,19 @@
 
 using namespace std::chrono_literals;
 
-enum BlockingType { NonBlocking, NonBlockingPut, NonBlockingGet, Blocking };
+const auto IterationsMultiplier = 10;
 
-template <BlockingType blockingType, int iterations>
+template <fastchan::BlockingType blockingType, int iterations>
 void testSPSCSingleThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, chan_size> chan;
+    fastchan::SPSC<int, blockingType, chan_size> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
     // Test put and read with a single thread
     for (int i = 0; i < iterations; ++i) {
-        if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
-            assert(chan.putWithoutBlocking(i));
+        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+            assert(chan.put(i));
         } else {
             chan.put(i);
         }
@@ -40,16 +40,16 @@ void testSPSCSingleThreaded() {
 
     // Test put and get with a single thread
     for (int i = 0; i < iterations; ++i) {
-        if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
-            assert(chan.putWithoutBlocking(i));
+        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+            assert(chan.put(i));
         } else {
             chan.put(i);
         }
     }
 
     for (int i = 0; i < iterations; ++i) {
-        if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
-            assert(chan.getWithoutBlocking() == i);
+        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::BlockingPutNonBlockingGet) {
+            assert(chan.get() == i);
         } else {
             assert(chan.get() == i);
         }
@@ -62,18 +62,20 @@ void testSPSCSingleThreaded() {
     assert(chan.isEmpty());
 }
 
-template <BlockingType blockingType, int iterations>
+template <fastchan::BlockingType blockingType, int iterations>
 void testSPSCMultiThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, chan_size> chan;
+    fastchan::SPSC<int, blockingType, chan_size> chan;
+
+    auto total_iterations = IterationsMultiplier * iterations;
 
     // Test put and get with multiple threads
     std::thread producer([&] {
-        for (int i = 1; i <= iterations * 2; ++i) {
-            if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+        for (int i = 1; i <= total_iterations; ++i) {
+            if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
                 auto result = false;
                 do {
-                    result = chan.putWithoutBlocking(i);
+                    result = chan.put(i);
                 } while (!result);
                 continue;
             }
@@ -83,11 +85,11 @@ void testSPSCMultiThreaded() {
     });
 
     std::thread consumer([&] {
-        for (int i = 1; i <= iterations * 2;) {
-            if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
-                auto&& val = chan.getWithoutBlocking();
+        for (int i = 1; i <= total_iterations;) {
+            if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::BlockingPutNonBlockingGet) {
+                auto&& val = chan.get();
                 while (!val) {
-                    val = chan.getWithoutBlocking();
+                    val = chan.get();
                 }
 
                 assert(*val == i);
@@ -107,17 +109,17 @@ void testSPSCMultiThreaded() {
     assert(chan.size() == 0);
 }
 
-template <BlockingType blockingType>
+template <fastchan::BlockingType blockingType>
 void testSPSC() {
     testSPSCSingleThreaded<blockingType, 4096>();
     testSPSCMultiThreaded<blockingType, 4096>();
 }
 
 int main() {
-    testSPSC<Blocking>();
-    testSPSC<NonBlockingGet>();
-    testSPSC<NonBlockingPut>();
-    testSPSC<NonBlocking>();
+    testSPSC<fastchan::BlockingPutBlockingGet>();
+    testSPSC<fastchan::BlockingPutNonBlockingGet>();
+    testSPSC<fastchan::NonBlockingPutBlockingGet>();
+    testSPSC<fastchan::NonBlockingPutNonBlockingGet>();
 
     return 0;
 }

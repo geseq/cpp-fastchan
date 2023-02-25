@@ -1,49 +1,46 @@
 #include <array>
 #include <atomic>
+#include <cwctype>
 #include <optional>
 #include <thread>
+#include <type_traits>
 
 #include "common.hpp"
 
 namespace fastchan {
 
-template <typename T, size_t min_size>
+template <typename T, BlockingType blocking_type, size_t min_size>
 class SPSC {
    public:
+    using put_t = typename std::conditional<(blocking_type == BlockingPutBlockingGet || blocking_type == BlockingPutNonBlockingGet), void, bool>::type;
+    using get_t = typename std::conditional<(blocking_type == BlockingPutBlockingGet || blocking_type == NonBlockingPutBlockingGet), T, std::optional<T>>::type;
+
     SPSC() = default;
 
-    void put(const T &value) noexcept {
+    put_t put(const T &value) noexcept {
         while (next_free_index_2_ > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
-            std::this_thread::yield();
+            if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == BlockingPutNonBlockingGet) {
+                std::this_thread::yield();
+            } else {
+                return false;
+            }
         }
 
         contents_[next_free_index_2_ & index_mask_] = value;
         next_free_index_.store(++next_free_index_2_, std::memory_order_release);
-    }
 
-    bool putWithoutBlocking(const T &value) noexcept {
-        if (next_free_index_2_ > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
-            return false;
+        if constexpr (blocking_type != BlockingPutBlockingGet && blocking_type != BlockingPutNonBlockingGet) {
+            return true;
         }
-
-        contents_[next_free_index_2_ & index_mask_] = value;
-        next_free_index_.store(++next_free_index_2_, std::memory_order_release);
-        return true;
     }
 
-    T get() noexcept {
+    get_t get() noexcept {
         while (reader_index_2_ >= next_free_index_.load(std::memory_order_acquire)) {
-            std::this_thread::yield();
-        }
-
-        auto contents = contents_[reader_index_2_ & index_mask_];
-        reader_index_.store(++reader_index_2_, std::memory_order_release);
-        return contents;
-    }
-
-    std::optional<T> getWithoutBlocking() noexcept {
-        if (reader_index_2_ >= next_free_index_.load(std::memory_order_acquire)) {
-            return std::nullopt;
+            if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == NonBlockingPutBlockingGet) {
+                std::this_thread::yield();
+            } else {
+                return std::nullopt;
+            }
         }
 
         auto contents = contents_[reader_index_2_ & index_mask_];
