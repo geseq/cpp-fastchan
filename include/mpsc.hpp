@@ -19,9 +19,15 @@ class MPSC {
         }
 
         auto write_index = writer_index_.fetch_add(1, std::memory_order_acq_rel);
+        while (write_index > (reader_index_.load(std::memory_order_acquire) + index_mask_))
+            ;
+
         contents_[write_index & index_mask_] = value;
-        while (!last_committed_index_.compare_exchange_weak(write_index, write_index + 1, std::memory_order_acq_rel, std::memory_order_relaxed)) {
+
+        auto cache_idx = write_index;
+        while (!last_committed_index_.compare_exchange_weak(cache_idx, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
             // commit in the correct order to avoid problems
+            cache_idx = write_index;
         }
     }
 
@@ -33,9 +39,15 @@ class MPSC {
         }
 
         auto write_index = writer_index_.fetch_add(1, std::memory_order_acq_rel);
+        while (write_index > (reader_index_.load(std::memory_order_acquire) + index_mask_))
+            ;
+
         contents_[write_index & index_mask_] = value;
-        while (!last_committed_index_.compare_exchange_weak(write_index, write_index + 1, std::memory_order_acq_rel, std::memory_order_relaxed)) {
+
+        auto cache_idx = write_index;
+        while (!last_committed_index_.compare_exchange_weak(cache_idx, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
             // commit in the correct order to avoid problems
+            cache_idx = write_index;
         }
         return true;
     }
