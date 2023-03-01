@@ -4,12 +4,20 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <iostream>
 #include <mpsc.hpp>
 #include <thread>
 
 using namespace std::chrono_literals;
 
-enum BlockingType { NonBlocking, NonBlockingPut, NonBlockingGet, Blocking };
+enum BlockingType {
+    NonBlocking,
+    NonBlockingPut,
+    NonBlockingGet,
+    Blocking
+};
+
+const auto IterationsMultiplier = 10;
 
 template <BlockingType blockingType, int iterations>
 void testMPSCSingleThreaded() {
@@ -32,7 +40,7 @@ void testMPSCSingleThreaded() {
 
         assert(chan.size() == i + 1);
         assert(chan.isEmpty() == false);
-        if (i < iterations - 1) {
+        if ((i + 1) % iterations != 0) {
             assert(chan.isFull() == false);
         } else {
             assert(chan.isFull() == true);
@@ -49,7 +57,7 @@ void testMPSCSingleThreaded() {
 
     // Test put and get with a single thread
     for (int i = 0; i < iterations; ++i) {
-        if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+        if constexpr (blockingType == NonBlocking || blockingType == NonBlockingPut) {
             auto result = false;
             do {
                 result = chan.putWithoutBlocking(i);
@@ -62,7 +70,7 @@ void testMPSCSingleThreaded() {
     }
 
     for (int i = 0; i < iterations; ++i) {
-        if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
+        if constexpr (blockingType == NonBlocking || blockingType == NonBlockingGet) {
             auto&& val = chan.getWithoutBlocking();
             while (!val) {
                 val = chan.getWithoutBlocking();
@@ -87,24 +95,24 @@ void testMPSCMultiThreadedSingleProducer() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::MPSC<int, chan_size> chan;
 
+    auto total_iterations = IterationsMultiplier * iterations;
     // Test put and get with multiple threads
     std::thread producer([&] {
-        for (int i = 1; i <= iterations * 2; ++i) {
-            if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+        for (int i = 1; i <= total_iterations; ++i) {
+            if constexpr (blockingType == NonBlocking || blockingType == NonBlockingPut) {
                 auto result = false;
                 do {
                     result = chan.putWithoutBlocking(i);
                 } while (!result);
-                continue;
+            } else {
+                chan.put(i);
             }
-
-            chan.put(i);
         }
     });
 
     std::thread consumer([&] {
-        for (int i = 1; i <= iterations * 2;) {
-            if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
+        for (int i = 1; i <= total_iterations;) {
+            if constexpr (blockingType == NonBlocking || blockingType == NonBlockingGet) {
                 auto&& val = chan.getWithoutBlocking();
                 while (!val) {
                     val = chan.getWithoutBlocking();
@@ -112,12 +120,11 @@ void testMPSCMultiThreadedSingleProducer() {
 
                 assert(*val == i);
                 ++i;
-                continue;
+            } else {
+                auto val = chan.get();
+                assert(val == i);
+                ++i;
             }
-
-            auto val = chan.get();
-            assert(val == i);
-            ++i;
         }
     });
 
@@ -132,8 +139,8 @@ void testMPSCMultiThreadedMultiProducer() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::MPSC<int, chan_size> chan;
 
-    auto total_iterations = 2 * iterations;
-    uint64_t total = num_threads * (total_iterations * (total_iterations + 1) / 2);
+    size_t total_iterations = IterationsMultiplier * iterations;
+    size_t total = num_threads * (total_iterations * (total_iterations + 1) / 2);
 
     std::array<std::thread, num_threads> producers;
 
@@ -141,22 +148,21 @@ void testMPSCMultiThreadedMultiProducer() {
         // Test put and get with multiple threads
         producers[i] = std::thread([&] {
             for (int i = 1; i <= total_iterations; ++i) {
-                if (blockingType == NonBlocking || blockingType == NonBlockingPut) {
+                if constexpr (blockingType == NonBlocking || blockingType == NonBlockingPut) {
                     auto result = false;
                     do {
                         result = chan.putWithoutBlocking(i);
                     } while (!result);
-                    continue;
+                } else {
+                    chan.put(i);
                 }
-
-                chan.put(i);
             }
         });
     }
 
     std::thread consumer([&] {
         for (int i = 1; i <= total_iterations * num_threads;) {
-            if (blockingType == NonBlocking || blockingType == NonBlockingGet) {
+            if constexpr (blockingType == NonBlocking || blockingType == NonBlockingGet) {
                 auto&& val = chan.getWithoutBlocking();
                 while (!val) {
                     val = chan.getWithoutBlocking();
@@ -164,12 +170,11 @@ void testMPSCMultiThreadedMultiProducer() {
 
                 total -= *val;
                 ++i;
-                continue;
+            } else {
+                auto val = chan.get();
+                total -= val;
+                ++i;
             }
-
-            auto val = chan.get();
-            total -= val;
-            ++i;
         }
     });
 
@@ -178,6 +183,7 @@ void testMPSCMultiThreadedMultiProducer() {
     }
     consumer.join();
 
+    assert(total == 0);
     assert(chan.size() == 0);
 }
 
@@ -187,14 +193,11 @@ void testMPSC() {
     testMPSCMultiThreadedSingleProducer<blockingType, 4>();
     testMPSCMultiThreadedMultiProducer<blockingType, 4, 3>();
     testMPSCMultiThreadedMultiProducer<blockingType, 4, 5>();
-    testMPSCMultiThreadedMultiProducer<blockingType, 4, 15>();
 
     testMPSCSingleThreaded<blockingType, 4096>();
     testMPSCMultiThreadedSingleProducer<blockingType, 4096>();
     testMPSCMultiThreadedMultiProducer<blockingType, 4096, 3>();
     testMPSCMultiThreadedMultiProducer<blockingType, 4096, 5>();
-    testMPSCMultiThreadedMultiProducer<blockingType, 4096, 15>();
-    // TODO: add many threads test
 }
 
 int main() {
