@@ -25,13 +25,13 @@ class MPSC {
                     return false;
                 }
             }
-        } while (!next_free_index_.compare_exchange_weak(write_index, write_index + 1, std::memory_order_release, std::memory_order_acquire));
+        } while (!next_free_index_.compare_exchange_strong(write_index, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire));
 
         contents_[write_index & index_mask_] = value;
 
         auto cache_idx = write_index;
         // commit in the correct order to avoid problems
-        while (!last_committed_index_.compare_exchange_weak(cache_idx, write_index + 1, std::memory_order_release, std::memory_order_acquire)) {
+        while (!last_committed_index_.compare_exchange_strong(cache_idx, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
             std::this_thread::yield();
             cache_idx = write_index;
         }
