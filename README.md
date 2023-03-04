@@ -16,7 +16,7 @@ c,put(1);
 c,put(2);
 c,put(3);
 
-auto var = c.get();
+auto val = c.get();
 ```
 
 ```cpp
@@ -28,6 +28,6 @@ c,put(1);
 c,put(2);
 c,put(3);
 
-auto var = c.get();
+auto val = c.get();
 
 ```
