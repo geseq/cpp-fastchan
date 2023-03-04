@@ -16,25 +16,23 @@ class MPSC {
     MPSC() = default;
 
     put_t put(const T &value) noexcept {
-        auto index = next_free_index_.fetch_add(1, std::memory_order_relaxed);
-        while (index > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
-            if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == BlockingPutNonBlockingGet) {
-                std::this_thread::yield();
-            } else {
-                next_free_index_.fetch_sub(1, std::memory_order_relaxed);
-                return false;
+        auto write_index = next_free_index_.load(std::memory_order_acquire);
+        do {
+            if (write_index > (reader_index_.load(std::memory_order_relaxed) + index_mask_)) {
+                if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == BlockingPutNonBlockingGet) {
+                    std::this_thread::yield();
+                } else {
+                    return false;
+                }
             }
-        }
-
-        auto write_index = writer_index_.fetch_add(1, std::memory_order_relaxed);
-        while (write_index > (reader_index_.load(std::memory_order_acquire) + index_mask_))
-            ;
+        } while (!next_free_index_.compare_exchange_weak(write_index, write_index + 1, std::memory_order_release, std::memory_order_acquire));
 
         contents_[write_index & index_mask_] = value;
 
         auto cache_idx = write_index;
-        while (!last_committed_index_.compare_exchange_weak(cache_idx, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
-            // commit in the correct order to avoid problems
+        // commit in the correct order to avoid problems
+        while (!last_committed_index_.compare_exchange_weak(cache_idx, write_index + 1, std::memory_order_release, std::memory_order_acquire)) {
+            std::this_thread::yield();
             cache_idx = write_index;
         }
 
@@ -60,7 +58,6 @@ class MPSC {
     void empty() noexcept {
         reader_index_2_ = 0;
         next_free_index_.store(0, std::memory_order_release);
-        writer_index_.store(0, std::memory_order_release);
         last_committed_index_.store(0, std::memory_order_release);
         reader_index_.store(0, std::memory_order_release);
     }
@@ -80,7 +77,6 @@ class MPSC {
     alignas(64) std::size_t reader_index_2_{0};
     alignas(64) std::atomic<std::size_t> reader_index_{0};
     alignas(64) std::atomic<std::size_t> next_free_index_{0};
-    alignas(64) std::atomic<std::size_t> writer_index_{0};
     alignas(64) std::atomic<std::size_t> last_committed_index_{0};
     alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 };
