@@ -2,6 +2,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
+#include <iostream>
 #include <mpsc.hpp>
 #include <spsc.hpp>
 #include <thread>
@@ -253,10 +255,13 @@ BENCHMARK_TEMPLATE(BoostSPSC_Get, 1'048'576);
 
 template <size_t min_size, int num_producers>
 static void MPSC_BlockingBoth_Put(benchmark::State& state) {
-    fastchan::MPSC<uint8_t, min_size> c;
-    std::atomic_bool shouldRun = true;
+    fastchan::MPSC<uint8_t, fastchan::BlockingPutBlockingGet, min_size> c;
+    std::atomic_bool shouldRunWriter = true;
+    std::atomic_bool shouldRunReader = true;
+    std::atomic<uint8_t> stoppedWriters = 0;
+
     std::thread reader([&]() {
-        while (shouldRun) {
+        while (shouldRunReader) {
             auto&& it = c.get();
         }
     });
@@ -265,9 +270,10 @@ static void MPSC_BlockingBoth_Put(benchmark::State& state) {
     std::array<std::thread, num_producers - 1> producers;
     for (auto i = 0; i < num_producers - 1; ++i) {
         producers[i] = std::thread([&]() {
-            while (shouldRun) {
+            while (shouldRunWriter) {
                 c.put(0);
             }
+            stoppedWriters++;
         });
     }
 
@@ -276,13 +282,14 @@ static void MPSC_BlockingBoth_Put(benchmark::State& state) {
         c.put(0);
     }
 
-    shouldRun = false;
+    shouldRunWriter = false;
+    while (stoppedWriters != num_producers - 1) {
+        std::this_thread::yield();
+    }
+    shouldRunReader = false;
 
     // clear any blocks
-    while (c.getWithoutBlocking()) {
-    }
-    while (c.putWithoutBlocking(0)) {
-    }
+    c.put(0);
 
     for (auto i = 0; i < num_producers - 1; ++i) {
         producers[i].join();
@@ -323,14 +330,18 @@ BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 5);
 
 template <size_t min_size, int num_producers>
 static void MPSC_BlockingBoth_Get(benchmark::State& state) {
-    fastchan::MPSC<uint8_t, min_size> c;
-    std::atomic_bool shouldRun = true;
+    fastchan::MPSC<uint8_t, fastchan::BlockingPutBlockingGet, min_size> c;
+    std::atomic_bool shouldRunWriter = true;
+    std::atomic_bool shouldRunReader = true;
+    std::atomic<uint8_t> stoppedWriters = 0;
+
     std::array<std::thread, num_producers> producers;
     for (auto i = 0; i < num_producers; ++i) {
         producers[i] = std::thread([&]() {
-            while (shouldRun) {
+            while (shouldRunWriter) {
                 c.put(0);
             }
+            stoppedWriters++;
         });
     }
 
@@ -339,17 +350,26 @@ static void MPSC_BlockingBoth_Get(benchmark::State& state) {
         auto&& it = c.get();
     }
 
-    shouldRun = false;
+    std::thread reader([&]() {
+        while (shouldRunReader) {
+            auto&& it = c.get();
+        }
+    });
+
+    shouldRunWriter = false;
+    while (stoppedWriters != num_producers) {
+        std::this_thread::yield();
+    }
+    shouldRunReader = false;
 
     // clear any blocks
-    while (c.getWithoutBlocking()) {
-    }
-    while (c.putWithoutBlocking(0)) {
-    }
+    c.put(0);
 
     for (auto i = 0; i < num_producers; ++i) {
         producers[i].join();
     }
+
+    reader.join();
 }
 
 BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 1);
@@ -384,11 +404,13 @@ BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 5);
 
 template <size_t min_size, int num_producers>
 static void MPSC_NonBlockingGet_Put(benchmark::State& state) {
-    fastchan::MPSC<uint8_t, min_size> c;
-    std::atomic_bool shouldRun = true;
+    fastchan::MPSC<uint8_t, fastchan::BlockingPutNonBlockingGet, min_size> c;
+    std::atomic_bool shouldRunWriter = true;
+    std::atomic_bool shouldRunReader = true;
+    std::atomic<uint8_t> stoppedWriters = 0;
     std::thread reader([&]() {
-        while (shouldRun.load(std::memory_order_relaxed)) {
-            auto&& it = c.getWithoutBlocking();
+        while (shouldRunReader.load(std::memory_order_relaxed)) {
+            auto&& it = c.get();
         }
     });
 
@@ -396,9 +418,10 @@ static void MPSC_NonBlockingGet_Put(benchmark::State& state) {
     std::array<std::thread, num_producers - 1> producers;
     for (auto i = 0; i < num_producers - 1; ++i) {
         producers[i] = std::thread([&]() {
-            while (shouldRun) {
+            while (shouldRunWriter) {
                 c.put(0);
             }
+            stoppedWriters++;
         });
     }
 
@@ -406,13 +429,14 @@ static void MPSC_NonBlockingGet_Put(benchmark::State& state) {
     for (auto _ : state) {
         c.put(0);
     }
-    shouldRun = false;
+    shouldRunWriter = false;
+    while (stoppedWriters != num_producers - 1) {
+        std::this_thread::yield();
+    }
+    shouldRunReader = false;
 
     // clear any blocks
-    while (c.getWithoutBlocking()) {
-    }
-    while (c.putWithoutBlocking(0)) {
-    }
+    c.get();
 
     for (auto i = 0; i < num_producers - 1; ++i) {
         producers[i].join();
@@ -452,33 +476,46 @@ BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Put, 1'048'576, 5);
 
 template <size_t min_size, int num_producers>
 static void MPSC_NonBlockingGet_Get(benchmark::State& state) {
-    fastchan::MPSC<uint8_t, min_size> c;
-    std::atomic_bool shouldRun = true;
+    fastchan::MPSC<uint8_t, fastchan::BlockingPutNonBlockingGet, min_size> c;
+    std::atomic_bool shouldRunWriter = true;
+    std::atomic_bool shouldRunReader = true;
+    std::atomic<uint8_t> stoppedWriters = 0;
+
     // create n producers
     std::array<std::thread, num_producers> producers;
     for (auto i = 0; i < num_producers; ++i) {
         producers[i] = std::thread([&]() {
-            while (shouldRun) {
+            while (shouldRunWriter) {
                 c.put(0);
             }
+            stoppedWriters++;
         });
     }
 
     // Code inside this loop is measured repeatedly
     for (auto _ : state) {
-        auto&& it = c.getWithoutBlocking();
+        auto&& it = c.get();
     }
-    shouldRun = false;
+
+    std::thread reader([&]() {
+        while (shouldRunReader) {
+            auto&& it = c.get();
+        }
+    });
+
+    shouldRunWriter = false;
+    while (stoppedWriters != num_producers) {
+        std::this_thread::yield();
+    }
+    shouldRunReader = false;
 
     // clear any blocks
-    while (c.getWithoutBlocking()) {
-    }
-    while (c.putWithoutBlocking(0)) {
-    }
+    c.get();
 
     for (auto i = 0; i < num_producers; ++i) {
         producers[i].join();
     }
+    reader.join();
 }
 
 BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 16, 1);
@@ -513,11 +550,11 @@ BENCHMARK_TEMPLATE(MPSC_NonBlockingGet_Get, 1'048'576, 5);
 
 template <size_t min_size, int num_producers, int loop>
 static void MPSC_NonBlockingBoth_Put(benchmark::State& state) {
-    fastchan::MPSC<uint8_t, min_size> c;
+    fastchan::MPSC<uint8_t, fastchan::NonBlockingPutNonBlockingGet, min_size> c;
     std::atomic_bool shouldRun = true;
     std::thread reader([&]() {
         while (shouldRun) {
-            auto&& it = c.getWithoutBlocking();
+            auto&& it = c.get();
         }
     });
 
@@ -527,23 +564,18 @@ static void MPSC_NonBlockingBoth_Put(benchmark::State& state) {
         producers[i] = std::thread([&]() {
             auto otherWork = 0;
             while (shouldRun) {
-                c.putWithoutBlocking(0);
+                c.put(0);
             }
         });
     }
 
     // Code inside this loop is measured repeatedly
     for (auto _ : state) {
-        c.putWithoutBlocking(0);
+        c.put(0);
     }
     shouldRun = false;
 
     // clear any blocks
-    while (c.getWithoutBlocking()) {
-    }
-    while (c.putWithoutBlocking(0)) {
-    }
-
     for (auto i = 0; i < num_producers - 1; ++i) {
         producers[i].join();
     }
@@ -612,29 +644,23 @@ BENCHMARK_TEMPLATE(MPSC_NonBlockingBoth_Put, 1'048'576, 5, 100);
 
 template <size_t min_size, int num_producers, int loop>
 static void MPSC_NonBlockingBoth_Get(benchmark::State& state) {
-    fastchan::MPSC<uint8_t, min_size> c;
+    fastchan::MPSC<uint8_t, fastchan::NonBlockingPutNonBlockingGet, min_size> c;
     std::atomic_bool shouldRun = true;
     std::array<std::thread, num_producers> producers;
     for (auto i = 0; i < num_producers; ++i) {
         producers[i] = std::thread([&]() {
             auto otherWork = 0;
             while (shouldRun) {
-                c.putWithoutBlocking(0);
+                c.put(0);
             }
         });
     }
 
     // Code inside this loop is measured repeatedly
     for (auto _ : state) {
-        auto&& it = c.getWithoutBlocking();
+        auto&& it = c.get();
     }
     shouldRun = false;
-
-    // clear any blocks
-    while (c.getWithoutBlocking()) {
-    }
-    while (c.putWithoutBlocking(0)) {
-    }
 
     for (auto i = 0; i < num_producers; ++i) {
         producers[i].join();
