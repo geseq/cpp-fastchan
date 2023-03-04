@@ -10,7 +10,7 @@
 
 using namespace std::chrono_literals;
 
-const auto IterationsMultiplier = 10;
+const auto IterationsMultiplier = 100;
 
 template <fastchan::BlockingType blockingType, int iterations>
 void testMPSCSingleThreaded() {
