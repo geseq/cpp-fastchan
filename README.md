@@ -1,9 +1,33 @@
 # cpp-fastchan
 
-Ringbuffer that started out based on [fastchan](https://github.com/geseq/fastchan)
-
-For now this includes only an SPSC and MPSC ringbuffer.
+High performance SPSC and MPSC ringbuffers which can be blocking/non-blocking on gets, puts, or both. 
 
 If the size provided is not a power if 2, it's rounded up to the next power of 2.
 
-Can be blocking/non-blocking on gets, puts, or both. However, you probably don't want to use blocking puts for MPSC. The higher the number of threads the worse the performance unless your consumers are much faster than your producers.
+
+# Usage
+
+```cpp
+// SPSC
+fastchan::SPSC<int, blockingType, chan_size> c;
+
+c,put(0);
+c,put(1);
+c,put(2);
+c,put(3);
+
+auto var = c.get();
+```
+
+```cpp
+// MPSC
+fastchan::MPSC<int, blockingType, chan_size> c;
+
+c,put(0);
+c,put(1);
+c,put(2);
+c,put(3);
+
+auto var = c.get();
+
+```
