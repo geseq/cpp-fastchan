@@ -16,6 +16,11 @@ enum BlockingType {
     NonBlockingPutNonBlockingGet,
 };
 
+enum WaitType {
+    WaitSpin,
+    WaitYield,
+};
+
 constexpr size_t roundUpNextPowerOfTwo(size_t v) {
     v--;
     for (size_t i = 1; i < sizeof(v) * CHAR_BIT; i *= 2) {
