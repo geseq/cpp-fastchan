@@ -7,7 +7,7 @@
 
 namespace fastchan {
 
-template <typename T, BlockingType blocking_type, size_t min_size>
+template <typename T, BlockingType blocking_type, size_t min_size, WaitType wait_type = WaitYield>
 class MPSC {
    public:
     using put_t = typename std::conditional<(blocking_type == BlockingPutBlockingGet || blocking_type == BlockingPutNonBlockingGet), void, bool>::type;
@@ -20,7 +20,9 @@ class MPSC {
         do {
             if (write_index > (reader_index_.load(std::memory_order_relaxed) + index_mask_)) {
                 if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == BlockingPutNonBlockingGet) {
-                    std::this_thread::yield();
+                    if constexpr (wait_type == WaitYield) {
+                        std::this_thread::yield();
+                    }
                 } else {
                     return false;
                 }
@@ -29,12 +31,14 @@ class MPSC {
 
         contents_[write_index & index_mask_] = value;
 
-        auto cache_idx = write_index;
         // commit in the correct order to avoid problems
-        while (!last_committed_index_.compare_exchange_strong(cache_idx, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire)) {
-            std::this_thread::yield();
-            cache_idx = write_index;
+        while (last_committed_index_.load(std::memory_order_relaxed) != write_index) {
+            if constexpr (wait_type == WaitYield) {
+                std::this_thread::yield();
+            }
         }
+
+        last_committed_index_.store(++write_index, std::memory_order_release);
 
         if constexpr (blocking_type != BlockingPutBlockingGet && blocking_type != BlockingPutNonBlockingGet) {
             return true;
@@ -44,7 +48,9 @@ class MPSC {
     get_t get() noexcept {
         while (reader_index_2_ >= last_committed_index_.load(std::memory_order_relaxed)) {
             if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == NonBlockingPutBlockingGet) {
-                std::this_thread::yield();
+                if constexpr (wait_type == WaitYield) {
+                    std::this_thread::yield();
+                }
             } else {
                 return std::nullopt;
             }

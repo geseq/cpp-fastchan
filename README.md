@@ -10,6 +10,8 @@ If the size provided is not a power if 2, it's rounded up to the next power of 2
 ```cpp
 // SPSC
 fastchan::SPSC<int, blockingType, chan_size> c;
+// OR
+fastchan::SPSC<int, blockingType, chan_size, fastchan::WaitSpin> c;
 
 c,put(0);
 c,put(1);
@@ -22,6 +24,8 @@ auto val = c.get();
 ```cpp
 // MPSC
 fastchan::MPSC<int, blockingType, chan_size> c;
+// OR
+fastchan::MPSC<int, blockingType, chan_size, fastchan::WaitSpin> c;
 
 c,put(0);
 c,put(1);
