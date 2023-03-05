@@ -1,5 +1,10 @@
+#include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstdint>
+#include <cstdlib>
+#include <functional>
+#include <iostream>
 #include <optional>
 #include <thread>
 
@@ -31,14 +36,40 @@ class MPSC {
 
         contents_[write_index & index_mask_] = value;
 
-        // commit in the correct order to avoid problems
-        while (last_committed_index_.load(std::memory_order_relaxed) != write_index) {
-            if constexpr (wait_type == WaitYield) {
-                std::this_thread::yield();
+        if constexpr (roundUpNextPowerOfTwo(min_size) > 63) {
+            if (write_index > last_committed_index_ + 64) {
+                last_committed_index_.store(write_index + 64, std::memory_order_release);
+                bit_index_ = 0;
             }
-        }
 
-        last_committed_index_.store(++write_index, std::memory_order_release);
+            auto last = last_committed_index_.load(std::memory_order_acquire);
+            // commit in the correct order to avoid problems
+            if (last == write_index) {
+                uint64_t places = 1;  // at least one place for current write_index
+                uint64_t shift = 1;
+                for (auto i = 0; i < 64; ++i) {
+                    if ((bit_index_ & shift) == 0) {
+                        break;
+                    }
+                    ++places;
+                    shift = shift << 1;
+                }
+
+                last_committed_index_.store(write_index + places, std::memory_order_release);
+                bit_index_ = bit_index_ >> places;
+            } else {
+                bit_index_ |= (1 << (write_index - last));
+            }
+        } else {
+            // commit in the correct order to avoid problems
+            while (last_committed_index_.load(std::memory_order_relaxed) != write_index) {
+                if constexpr (wait_type == WaitYield) {
+                    std::this_thread::yield();
+                }
+            }
+
+            last_committed_index_.store(++write_index, std::memory_order_release);
+        }
 
         if constexpr (blocking_type != BlockingPutBlockingGet && blocking_type != BlockingPutNonBlockingGet) {
             return true;
@@ -81,6 +112,7 @@ class MPSC {
    private:
     const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
     alignas(64) std::size_t reader_index_2_{0};
+    alignas(64) std::atomic<std::uint64_t> bit_index_{0};
     alignas(64) std::atomic<std::size_t> reader_index_{0};
     alignas(64) std::atomic<std::size_t> next_free_index_{0};
     alignas(64) std::atomic<std::size_t> last_committed_index_{0};
