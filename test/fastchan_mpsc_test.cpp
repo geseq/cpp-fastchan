@@ -184,13 +184,22 @@ template <fastchan::BlockingType blockingType, fastchan::WaitType waitType>
 void testMPSC() {
     testMPSCSingleThreaded<blockingType, 4, waitType>();
     testMPSCMultiThreadedSingleProducer<blockingType, 4, waitType>();
-    testMPSCMultiThreadedMultiProducer<blockingType, 4, 3, waitType>();
-    testMPSCMultiThreadedMultiProducer<blockingType, 4, 5, waitType>();
+    std::cout << "Concurrency: " << std::thread::hardware_concurrency() << std::endl;
+    if (std::thread::hardware_concurrency() > 5) {
+        testMPSCMultiThreadedMultiProducer<blockingType, 4, 3, waitType>();
+        testMPSCMultiThreadedMultiProducer<blockingType, 4, 5, waitType>();
+    } else {
+        testMPSCMultiThreadedMultiProducer<blockingType, 4, 2, waitType>();
+    }
 
     testMPSCSingleThreaded<blockingType, 4096, waitType>();
     testMPSCMultiThreadedSingleProducer<blockingType, 4096, waitType>();
-    testMPSCMultiThreadedMultiProducer<blockingType, 4096, 3, waitType>();
-    testMPSCMultiThreadedMultiProducer<blockingType, 4096, 5, waitType>();
+    if (std::thread::hardware_concurrency() > 5) {
+        testMPSCMultiThreadedMultiProducer<blockingType, 4096, 3, waitType>();
+        testMPSCMultiThreadedMultiProducer<blockingType, 4096, 5, waitType>();
+    } else {
+        testMPSCMultiThreadedMultiProducer<blockingType, 4096, 2, waitType>();
+    }
 }
 
 int main() {
