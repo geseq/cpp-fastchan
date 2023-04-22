@@ -18,7 +18,7 @@ class MPSC {
     put_t put(const T &value) noexcept {
         auto write_index = next_free_index_.load(std::memory_order_acquire);
         do {
-            if (write_index > (reader_index_.load(std::memory_order_relaxed) + index_mask_)) {
+            while (write_index > (reader_index_.load(std::memory_order_relaxed) + index_mask_)) {
                 if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == BlockingPutNonBlockingGet) {
                     if constexpr (wait_type == WaitYield) {
                         std::this_thread::yield();
