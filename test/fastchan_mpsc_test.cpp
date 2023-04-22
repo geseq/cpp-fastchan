@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
-#include <iostream>
 #include <mpsc.hpp>
 #include <thread>
 
@@ -184,7 +183,6 @@ template <fastchan::BlockingType blockingType, fastchan::WaitType waitType>
 void testMPSC() {
     testMPSCSingleThreaded<blockingType, 4, waitType>();
     testMPSCMultiThreadedSingleProducer<blockingType, 4, waitType>();
-    std::cout << "Concurrency: " << std::thread::hardware_concurrency() << std::endl;
     if (std::thread::hardware_concurrency() > 5) {
         testMPSCMultiThreadedMultiProducer<blockingType, 4, 3, waitType>();
         testMPSCMultiThreadedMultiProducer<blockingType, 4, 5, waitType>();
