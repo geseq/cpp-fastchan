@@ -12,10 +12,10 @@ fastchan::SPSC<int, blockingType, chan_size> c;
 // OR
 fastchan::SPSC<int, blockingType, chan_size, fastchan::WaitSpin> c;
 
-c,put(0);
-c,put(1);
-c,put(2);
-c,put(3);
+c.put(0);
+c.put(1);
+c.put(2);
+c.put(3);
 
 auto val = c.get();
 ```
@@ -26,10 +26,10 @@ fastchan::MPSC<int, blockingType, chan_size> c;
 // OR
 fastchan::MPSC<int, blockingType, chan_size, fastchan::WaitSpin> c;
 
-c,put(0);
-c,put(1);
-c,put(2);
-c,put(3);
+c.put(0);
+c.put(1);
+c.put(2);
+c.put(3);
 
 auto val = c.get();
 
