@@ -91,8 +91,8 @@ class SPSC {
     alignas(64) std::atomic<std::size_t> next_free_index_{0};
 
     alignas(64) std::condition_variable put_cv_;
-    alignas(64) std::condition_variable get_cv_;
     alignas(64) std::mutex put_mutex_;
+    alignas(64) std::condition_variable get_cv_;
     alignas(64) std::mutex get_mutex_;
 
     alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
