@@ -57,8 +57,8 @@ if (BENCHMARK_ENABLE_TESTING)
         set_property(TEST ${test_name} PROPERTY LABELS "bench")
         list(APPEND ignore_tests ${test_name})
     ENDFOREACH ()
+
+    set (CMAKE_CTEST_ARGUMENTS "-L;test")
+    add_custom_target(bench COMMAND ctest -L bench -V)
 endif()
 
-set (CMAKE_CTEST_ARGUMENTS "-L;test")
-
-add_custom_target(bench COMMAND ctest -L bench -V)

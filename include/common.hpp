@@ -19,6 +19,7 @@ enum BlockingType {
 enum WaitType {
     WaitSpin,
     WaitYield,
+    WaitCondition,
 };
 
 constexpr size_t roundUpNextPowerOfTwo(size_t v) {

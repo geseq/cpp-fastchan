@@ -1,5 +1,7 @@
 #include <array>
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <optional>
 #include <thread>
 
@@ -22,6 +24,9 @@ class MPSC {
                 if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == BlockingPutNonBlockingGet) {
                     if constexpr (wait_type == WaitYield) {
                         std::this_thread::yield();
+                    } else if constexpr (wait_type == WaitCondition) {
+                        std::unique_lock<std::mutex> lock(put_mutex_);
+                        put_cv_.wait(lock, [this, write_index] { return write_index <= (reader_index_.load(std::memory_order_relaxed) + index_mask_); });
                     }
                 } else {
                     return false;
@@ -40,6 +45,11 @@ class MPSC {
 
         last_committed_index_.store(++write_index, std::memory_order_release);
 
+        if constexpr (wait_type == WaitCondition) {
+            std::lock_guard<std::mutex> lock(get_mutex_);
+            get_cv_.notify_one();
+        }
+
         if constexpr (blocking_type != BlockingPutBlockingGet && blocking_type != BlockingPutNonBlockingGet) {
             return true;
         }
@@ -50,6 +60,9 @@ class MPSC {
             if constexpr (blocking_type == BlockingPutBlockingGet || blocking_type == NonBlockingPutBlockingGet) {
                 if constexpr (wait_type == WaitYield) {
                     std::this_thread::yield();
+                } else if constexpr (wait_type == WaitCondition) {
+                    std::unique_lock<std::mutex> lock(get_mutex_);
+                    get_cv_.wait(lock, [this] { return reader_index_2_ < last_committed_index_.load(std::memory_order_relaxed); });
                 }
             } else {
                 return std::nullopt;
@@ -58,6 +71,11 @@ class MPSC {
 
         auto contents = contents_[reader_index_2_ & index_mask_];
         reader_index_.store(++reader_index_2_, std::memory_order_release);
+
+        if constexpr (wait_type == WaitCondition) {
+            std::lock_guard<std::mutex> lock(put_mutex_);
+            put_cv_.notify_one();
+        }
         return contents;
     }
 
@@ -84,6 +102,12 @@ class MPSC {
     alignas(64) std::atomic<std::size_t> reader_index_{0};
     alignas(64) std::atomic<std::size_t> next_free_index_{0};
     alignas(64) std::atomic<std::size_t> last_committed_index_{0};
+
+    alignas(64) std::condition_variable put_cv_;
+    alignas(64) std::condition_variable get_cv_;
+    alignas(64) std::mutex put_mutex_;
+    alignas(64) std::mutex get_mutex_;
+
     alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 };
 
