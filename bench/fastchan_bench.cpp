@@ -253,9 +253,9 @@ BENCHMARK_TEMPLATE(BoostSPSC_Get, 65'536);
 BENCHMARK_TEMPLATE(BoostSPSC_Get, 262'144);
 BENCHMARK_TEMPLATE(BoostSPSC_Get, 1'048'576);
 
-template <size_t min_size, int num_producers>
+template <size_t min_size, int num_producers, fastchan::WaitType wait_type>
 static void MPSC_BlockingBoth_Put(benchmark::State& state) {
-    fastchan::MPSC<uint8_t, fastchan::BlockingPutBlockingGet, min_size> c;
+    fastchan::MPSC<uint8_t, fastchan::BlockingPutBlockingGet, min_size, wait_type> c;
     std::atomic_bool shouldRunWriter = true;
     std::atomic_bool shouldRunReader = true;
     std::atomic<uint8_t> stoppedWriters = 0;
@@ -298,39 +298,99 @@ static void MPSC_BlockingBoth_Put(benchmark::State& state) {
     reader.join();
 }
 
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 1, fastchan::WaitYield);
 
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 2, fastchan::WaitYield);
 
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 5, fastchan::WaitYield);
 
-template <size_t min_size, int num_producers>
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 1, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 1, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 1, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 1, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 1, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 1, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 1, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 1, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 1, fastchan::WaitSpin);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 2, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 2, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 2, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 2, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 2, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 2, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 2, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 2, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 2, fastchan::WaitSpin);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 5, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 5, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 5, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 5, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 5, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 5, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 5, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 5, fastchan::WaitSpin);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 5, fastchan::WaitSpin);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 1, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 1, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 1, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 1, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 1, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 1, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 1, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 1, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 1, fastchan::WaitCondition);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 2, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 2, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 2, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 2, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 2, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 2, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 2, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 2, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 2, fastchan::WaitCondition);
+
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16, 5, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 64, 5, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 256, 5, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1024, 5, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 4096, 5, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 16'384, 5, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 65'536, 5, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 262'144, 5, fastchan::WaitCondition);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Put, 1'048'576, 5, fastchan::WaitCondition);
+
+template <size_t min_size, int num_producers, fastchan::WaitType wait_type>
 static void MPSC_BlockingBoth_Get(benchmark::State& state) {
-    fastchan::MPSC<uint8_t, fastchan::BlockingPutBlockingGet, min_size> c;
+    fastchan::MPSC<uint8_t, fastchan::BlockingPutBlockingGet, min_size, wait_type> c;
     std::atomic_bool shouldRunWriter = true;
     std::atomic_bool shouldRunReader = true;
     std::atomic<uint8_t> stoppedWriters = 0;
@@ -372,35 +432,35 @@ static void MPSC_BlockingBoth_Get(benchmark::State& state) {
     reader.join();
 }
 
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 1);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 1);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 1, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 1, fastchan::WaitYield);
 
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 2);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 2);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 2, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 2, fastchan::WaitYield);
 
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 5);
-BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 5);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 64, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 256, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1024, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 4096, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 16'384, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 65'536, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 262'144, 5, fastchan::WaitYield);
+BENCHMARK_TEMPLATE(MPSC_BlockingBoth_Get, 1'048'576, 5, fastchan::WaitYield);
 
 template <size_t min_size, int num_producers>
 static void MPSC_NonBlockingGet_Put(benchmark::State& state) {
