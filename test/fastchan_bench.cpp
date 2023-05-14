@@ -13,11 +13,11 @@ void benchmarkFastChanPut(int n) {
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < n; i++) {
         c.put(0);
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    auto end = std::chrono::steady_clock::now();
 
     reader.join();
 
@@ -35,11 +35,11 @@ void benchmarkFastChanGet(int n) {
         }
     });
 
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < n; i++) {
         c.get();
     }
-    auto end = std::chrono::high_resolution_clock::now();
+    auto end = std::chrono::steady_clock::now();
 
     reader.join();
 
