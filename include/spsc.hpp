@@ -84,18 +84,19 @@ class SPSC {
     bool isFull() const noexcept { return next_free_index_.load(std::memory_order_relaxed) > (reader_index_.load(std::memory_order_acquire) + index_mask_); }
 
    private:
-    const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
-    alignas(64) std::size_t next_free_index_2_{0};
-    alignas(64) std::size_t reader_index_2_{0};
-    alignas(64) std::atomic<std::size_t> reader_index_{0};
-    alignas(64) std::atomic<std::size_t> next_free_index_{0};
+    std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 
     alignas(64) std::condition_variable put_cv_;
     alignas(64) std::mutex put_mutex_;
     alignas(64) std::condition_variable get_cv_;
     alignas(64) std::mutex get_mutex_;
 
-    alignas(64) std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
+    const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
+
+    alignas(64) std::size_t next_free_index_2_{0};
+    alignas(64) std::size_t reader_index_2_{0};
+    alignas(64) std::atomic<std::size_t> reader_index_{0};
+    alignas(64) std::atomic<std::size_t> next_free_index_{0};
 };
 }  // namespace fastchan
 
