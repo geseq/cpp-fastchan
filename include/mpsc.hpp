@@ -27,6 +27,8 @@ class MPSC {
                     } else if constexpr (wait_type == WaitCondition) {
                         std::unique_lock<std::mutex> lock(put_mutex_);
                         put_cv_.wait(lock, [this, write_index] { return write_index <= (reader_index_.load(std::memory_order_relaxed) + index_mask_); });
+                    } else {
+                        pause();
                     }
                 } else {
                     return false;
@@ -40,6 +42,8 @@ class MPSC {
         while (last_committed_index_.load(std::memory_order_relaxed) != write_index) {
             if constexpr (wait_type == WaitYield) {
                 std::this_thread::yield();
+            } else {
+                pause();
             }
         }
 
@@ -63,6 +67,8 @@ class MPSC {
                 } else if constexpr (wait_type == WaitCondition) {
                     std::unique_lock<std::mutex> lock(get_mutex_);
                     get_cv_.wait(lock, [this] { return reader_index_2_ < last_committed_index_.load(std::memory_order_relaxed); });
+                } else {
+                    pause();
                 }
             } else {
                 return std::nullopt;
