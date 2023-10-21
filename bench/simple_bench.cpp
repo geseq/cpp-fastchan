@@ -124,7 +124,7 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
             auto end = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
-            std::cout << std::setfill(' ') << std::setw(10) << elapsed / 1'000'000 << " ";
+            std::cout << std::setfill(' ') << std::setw(10) << elapsed / num_iterations << " ";
         }
         std::cout << std::endl;
     }
