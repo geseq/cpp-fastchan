@@ -28,7 +28,7 @@
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
         "CMAKE_CXX_FLAGS": "-O0 -g",
-        "BENCHMARK_ENABLE_TESTING": "1",
+        "BENCHMARK_ENABLE_TESTING": "0",
         "CMAKE_BUILD_TYPE": "Debug"
       }
     }

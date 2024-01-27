@@ -9,13 +9,13 @@ namespace fastchan {
 #define CHAR_BIT __CHAR_BIT__
 #endif
 
-inline void pause() {
+inline void cpu_pause() {
 #if defined(__x86_64__) || defined(__i386__)
-  asm volatile ("pause" ::: "memory");
+    asm volatile("pause" ::: "memory");
 #elif defined(__arm__) || defined(__aarch64__)
-  asm volatile ("yield" ::: "memory");
+    asm volatile("yield" ::: "memory");
 #else
-  // do nothing
+    // do nothing
 #endif
 }
 
@@ -30,6 +30,7 @@ enum WaitType {
     WaitSpin,
     WaitYield,
     WaitCondition,
+    WaitNoOp,
 };
 
 constexpr size_t roundUpNextPowerOfTwo(size_t v) {
