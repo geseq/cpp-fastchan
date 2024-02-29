@@ -22,9 +22,9 @@ auto val = c.get();
 
 ```cpp
 // MPSC
-fastchan::MPSC<int, blockingType, chan_size> c;
+fastchan::MPSC<int, chan_size> c;
 // OR
-fastchan::MPSC<int, blockingType, chan_size, fastchan::WaitPause> c;
+fastchan::MPSC<int, chan_size, fastchan::PauseWaitStrategy, fastchan::PauseWaitStrategy> c;
 
 c.put(0);
 c.put(1);

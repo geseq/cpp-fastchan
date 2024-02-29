@@ -1,7 +1,12 @@
+#include <chrono>
 #include <condition_variable>
+#include <ratio>
 #include <thread>
 
 #include "common.hpp"
+
+#ifndef FASTCHANWAIT_HPP
+#define FASTCHANWAIT_HPP
 
 namespace fastchan {
 
@@ -51,10 +56,10 @@ class CVWaitStrategy : public WaitStrategyInterface<PauseWaitStrategy> {
     template <class Predicate>
     void wait(Predicate p) {
         std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait(lock, p);
+        cv_.wait_for(lock, std::chrono::nanoseconds(100), p);
     }
 
-    void notify() { cv_.notify_one(); }
+    void notify() { cv_.notify_all(); }
 
    private:
     std::condition_variable cv_;
@@ -62,3 +67,5 @@ class CVWaitStrategy : public WaitStrategyInterface<PauseWaitStrategy> {
 };
 
 }  // namespace fastchan
+
+#endif

@@ -11,16 +11,16 @@ using namespace std::chrono_literals;
 
 const auto IterationsMultiplier = 100;
 
-template <fastchan::BlockingType blockingType, int iterations, fastchan::WaitType waitType>
+template <int iterations, class put_wait_strategy, class get_wait_strategy>
 void testMPSCSingleThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::MPSC<int, blockingType, chan_size, waitType> chan;
+    fastchan::MPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
     // Test filling up with a single thread
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+        if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
             auto result = false;
             do {
                 result = chan.put(i);
@@ -49,7 +49,7 @@ void testMPSCSingleThreaded() {
 
     // Test put and get with a single thread
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+        if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
             auto result = false;
             do {
                 result = chan.put(i);
@@ -62,7 +62,7 @@ void testMPSCSingleThreaded() {
     }
 
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::BlockingPutNonBlockingGet) {
+        if constexpr (std::is_same<get_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
             auto&& val = chan.get();
             while (!val) {
                 val = chan.get();
@@ -82,16 +82,16 @@ void testMPSCSingleThreaded() {
     assert(chan.isEmpty());
 }
 
-template <fastchan::BlockingType blockingType, int iterations, fastchan::WaitType waitType>
+template <int iterations, class put_wait_strategy, class get_wait_strategy>
 void testMPSCMultiThreadedSingleProducer() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::MPSC<int, blockingType, chan_size, waitType> chan;
+    fastchan::MPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
 
     auto total_iterations = IterationsMultiplier * iterations;
     // Test put and get with multiple threads
     std::thread producer([&] {
         for (int i = 1; i <= total_iterations; ++i) {
-            if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+            if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
                 auto result = false;
                 do {
                     result = chan.put(i);
@@ -104,7 +104,7 @@ void testMPSCMultiThreadedSingleProducer() {
 
     std::thread consumer([&] {
         for (int i = 1; i <= total_iterations;) {
-            if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::BlockingPutNonBlockingGet) {
+            if constexpr (std::is_same<get_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
                 auto&& val = chan.get();
                 while (!val) {
                     val = chan.get();
@@ -126,10 +126,10 @@ void testMPSCMultiThreadedSingleProducer() {
     assert(chan.size() == 0);
 }
 
-template <fastchan::BlockingType blockingType, int iterations, int num_threads, fastchan::WaitType waitType>
+template <int iterations, int num_threads, class put_wait_strategy, class get_wait_strategy>
 void testMPSCMultiThreadedMultiProducer() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::MPSC<int, blockingType, chan_size, waitType> chan;
+    fastchan::MPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
 
     size_t total_iterations = IterationsMultiplier * iterations;
     size_t total = num_threads * (total_iterations * (total_iterations + 1) / 2);
@@ -140,7 +140,7 @@ void testMPSCMultiThreadedMultiProducer() {
         // Test put and get with multiple threads
         producers[i] = std::thread([&] {
             for (int i = 1; i <= total_iterations; ++i) {
-                if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+                if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
                     auto result = false;
                     do {
                         result = chan.put(i);
@@ -154,7 +154,7 @@ void testMPSCMultiThreadedMultiProducer() {
 
     std::thread consumer([&] {
         for (int i = 1; i <= total_iterations * num_threads;) {
-            if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::BlockingPutNonBlockingGet) {
+            if constexpr (std::is_same<get_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
                 auto&& val = chan.get();
                 while (!val) {
                     val = chan.get();
@@ -179,41 +179,42 @@ void testMPSCMultiThreadedMultiProducer() {
     assert(chan.size() == 0);
 }
 
-template <fastchan::BlockingType blockingType, fastchan::WaitType waitType>
+template <class put_wait_type, class get_wait_type>
 void testMPSC() {
-    testMPSCSingleThreaded<blockingType, 4, waitType>();
-    testMPSCMultiThreadedSingleProducer<blockingType, 4, waitType>();
+    testMPSCSingleThreaded<4, put_wait_type, get_wait_type>();
+    testMPSCMultiThreadedSingleProducer<4, put_wait_type, get_wait_type>();
     if (std::thread::hardware_concurrency() > 5) {
-        testMPSCMultiThreadedMultiProducer<blockingType, 4, 3, waitType>();
-        testMPSCMultiThreadedMultiProducer<blockingType, 4, 5, waitType>();
+        testMPSCMultiThreadedMultiProducer<4, 3, put_wait_type, get_wait_type>();
+        testMPSCMultiThreadedMultiProducer<4, 5, put_wait_type, get_wait_type>();
     } else {
-        testMPSCMultiThreadedMultiProducer<blockingType, 4, 2, waitType>();
+        testMPSCMultiThreadedMultiProducer<4, 2, put_wait_type, get_wait_type>();
     }
 
-    testMPSCSingleThreaded<blockingType, 4096, waitType>();
-    testMPSCMultiThreadedSingleProducer<blockingType, 4096, waitType>();
+    testMPSCSingleThreaded<4096, put_wait_type, get_wait_type>();
+    testMPSCMultiThreadedSingleProducer<4096, put_wait_type, get_wait_type>();
     if (std::thread::hardware_concurrency() > 5) {
-        testMPSCMultiThreadedMultiProducer<blockingType, 4096, 3, waitType>();
-        testMPSCMultiThreadedMultiProducer<blockingType, 4096, 5, waitType>();
+        testMPSCMultiThreadedMultiProducer<4096, 3, put_wait_type, get_wait_type>();
+        testMPSCMultiThreadedMultiProducer<4096, 5, put_wait_type, get_wait_type>();
     } else {
-        testMPSCMultiThreadedMultiProducer<blockingType, 4096, 2, waitType>();
+        testMPSCMultiThreadedMultiProducer<4096, 2, put_wait_type, get_wait_type>();
     }
 }
 
 int main() {
-    testMPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitPause>();
-    testMPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitPause>();
-    testMPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitPause>();
-    testMPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitPause>();
+    testMPSC<fastchan::PauseWaitStrategy, fastchan::PauseWaitStrategy>();
+    testMPSC<fastchan::PauseWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testMPSC<fastchan::ReturnImmediateStrategy, fastchan::PauseWaitStrategy>();
+    testMPSC<fastchan::ReturnImmediateStrategy, fastchan::ReturnImmediateStrategy>();
 
-    testMPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitYield>();
-    testMPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitYield>();
-    testMPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitYield>();
-    testMPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitYield>();
+    testMPSC<fastchan::YieldWaitStrategy, fastchan::YieldWaitStrategy>();
+    testMPSC<fastchan::YieldWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testMPSC<fastchan::ReturnImmediateStrategy, fastchan::YieldWaitStrategy>();
+    testMPSC<fastchan::ReturnImmediateStrategy, fastchan::ReturnImmediateStrategy>();
 
-    testMPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitCondition>();
-    testMPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitCondition>();
-    testMPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitCondition>();
-    testMPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitCondition>();
+    testMPSC<fastchan::CVWaitStrategy, fastchan::CVWaitStrategy>();
+    testMPSC<fastchan::CVWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testMPSC<fastchan::ReturnImmediateStrategy, fastchan::CVWaitStrategy>();
+    testMPSC<fastchan::ReturnImmediateStrategy, fastchan::ReturnImmediateStrategy>();
+
     return 0;
 }
