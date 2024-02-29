@@ -27,7 +27,7 @@ enum BlockingType {
 };
 
 enum WaitType {
-    WaitSpin,
+    WaitPause,
     WaitYield,
     WaitCondition,
     WaitNoOp,
