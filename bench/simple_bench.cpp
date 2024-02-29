@@ -136,9 +136,16 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
     // Sort the cost_per_op in ascending order
     std::sort(cost_per_op.begin(), cost_per_op.end(), [](const auto &a, const auto &b) { return std::get<0>(a) < std::get<0>(b); });
 
-    // Display the lowest 5 cost_per_op and their corresponding CPU pairs
-    std::cout << "Lowest 5 Cost per Op (ns/iteration) and their CPU pairs:\n";
+    // Display the best 5 cost_per_op and their corresponding CPU pairs
+    std::cout << "\nBest 5 Cost per Op (ns/iteration) and their CPU pairs:\n";
     for (size_t i = 0; i < std::min(cost_per_op.size(), size_t(5)); ++i) {
+        auto [latency, producer_cpu, consumer_cpu] = cost_per_op[i];
+        std::cout << "Cost: " << latency << ", Producer CPU: " << producer_cpu << ", Consumer CPU: " << consumer_cpu << std::endl;
+    }
+
+    // Display the worst 5 cost_per_op and their corresponding CPU pairs
+    std::cout << "\nWorst 5 Cost per Op (ns/iteration) and their CPU pairs:\n";
+    for (size_t i = cost_per_op.size() - 1; i >= std::max(size_t(0), cost_per_op.size() - size_t(5)); --i) {
         auto [latency, producer_cpu, consumer_cpu] = cost_per_op[i];
         std::cout << "Cost: " << latency << ", Producer CPU: " << producer_cpu << ", Consumer CPU: " << consumer_cpu << std::endl;
     }
