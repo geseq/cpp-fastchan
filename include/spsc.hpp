@@ -21,7 +21,8 @@ class SPSC {
     SPSC() = default;
 
     put_t put(const T &value) noexcept {
-        while (next_free_index_2_ > (reader_index_.load(std::memory_order_acquire) + index_mask_)) {
+        while (next_free_index_2_ > (reader_index_cache_ + index_mask_)) {
+            reader_index_cache_ = reader_index_.load(std::memory_order_acquire);
             if constexpr (std::is_same<PutWaitStrategy, ReturnImmediateStrategy>::value) {
                 return false;
             } else {
@@ -40,7 +41,8 @@ class SPSC {
     }
 
     get_t get() noexcept {
-        while (reader_index_2_ >= next_free_index_.load(std::memory_order_acquire)) {
+        while (reader_index_2_ >= next_free_index_cache_) {
+            next_free_index_cache_ = next_free_index_.load(std::memory_order_acquire);
             if constexpr (std::is_same<GetWaitStrategy, ReturnImmediateStrategy>::value) {
                 return std::nullopt;
             } else {
@@ -72,15 +74,23 @@ class SPSC {
    private:
     std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 
-    alignas(64) GetWaitStrategy get_wait_{};
-    alignas(64) PutWaitStrategy put_wait_{};
-    alignas(64) const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
+    struct alignas(64) {
+        GetWaitStrategy get_wait_{};
+        PutWaitStrategy put_wait_{};
+        const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
+    };
 
-    alignas(64) std::size_t next_free_index_2_{0};
-    alignas(64) std::atomic<std::size_t> next_free_index_{0};
+    struct alignas(64) {
+        std::size_t reader_index_cache_{0};
+        std::size_t next_free_index_2_{0};
+        std::atomic<std::size_t> next_free_index_{0};
+    };
 
-    alignas(64) std::size_t reader_index_2_{0};
-    alignas(64) std::atomic<std::size_t> reader_index_{0};
+    struct alignas(64) {
+        std::size_t next_free_index_cache_{0};
+        std::size_t reader_index_2_{0};
+        std::atomic<std::size_t> reader_index_{0};
+    };
 };
 }  // namespace fastchan
 
