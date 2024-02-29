@@ -15,51 +15,51 @@ template <typename Implementation>
 class WaitStrategyInterface {
    public:
     template <class Predicate>
-    void wait(Predicate p) {}
-    void notify() {}
+    inline void wait(Predicate p) {}
+    inline void notify() {}
 };
 
 class ReturnImmediateStrategy : public WaitStrategyInterface<ReturnImmediateStrategy> {
    public:
     template <class Predicate>
-    void wait(Predicate p) {}
-    void notify() {}
+    inline void wait(Predicate p) {}
+    inline void notify() {}
 };
 
 class NoOpWaitStrategy : public WaitStrategyInterface<NoOpWaitStrategy> {
    public:
     template <class Predicate>
-    void wait(Predicate p) {}
-    void notify() {}
+    inline void wait(Predicate p) {}
+    inline void notify() {}
 };
 
 class PauseWaitStrategy : public WaitStrategyInterface<PauseWaitStrategy> {
    public:
     template <class Predicate>
-    void wait(Predicate p) {
+    inline void wait(Predicate p) {
         cpu_pause();
     }
-    void notify() {}
+    inline void notify() {}
 };
 
 class YieldWaitStrategy : public WaitStrategyInterface<YieldWaitStrategy> {
    public:
     template <class Predicate>
-    void wait(Predicate p) {
+    inline void wait(Predicate p) {
         std::this_thread::yield();
     }
-    void notify() {}
+    inline void notify() {}
 };
 
 class CVWaitStrategy : public WaitStrategyInterface<PauseWaitStrategy> {
    public:
     template <class Predicate>
-    void wait(Predicate p) {
+    inline void wait(Predicate p) {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait_for(lock, std::chrono::nanoseconds(100), p);
     }
 
-    void notify() { cv_.notify_all(); }
+    inline void notify() { cv_.notify_all(); }
 
    private:
     std::condition_variable cv_;
