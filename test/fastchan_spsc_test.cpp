@@ -116,10 +116,10 @@ void testSPSC() {
 }
 
 int main() {
-    testSPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitSpin>();
-    testSPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitSpin>();
-    testSPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitSpin>();
-    testSPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitSpin>();
+    testSPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitPause>();
+    testSPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitPause>();
+    testSPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitPause>();
+    testSPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitPause>();
 
     testSPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitYield>();
     testSPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitYield>();

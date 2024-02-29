@@ -201,10 +201,10 @@ void testMPSC() {
 }
 
 int main() {
-    testMPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitSpin>();
-    testMPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitSpin>();
-    testMPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitSpin>();
-    testMPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitSpin>();
+    testMPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitPause>();
+    testMPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitPause>();
+    testMPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitPause>();
+    testMPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitPause>();
 
     testMPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitYield>();
     testMPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitYield>();

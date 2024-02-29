@@ -132,14 +132,15 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
 
 int main() {
 #if defined(__linux__)
-    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("SPSC_Spin");
+    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("SPSC_Pause");
+    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, BlockingPutBlockingGet, 32768, WaitNoOp>>("SPSC_NoOp");
 
     std::cout << "============================" << std::endl;
 
     run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("SPSC_Yield", 1);
     run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("SPSC_Yield", 1);
-    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("SPSC_Spin", 1);
-    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("SPSC_Spin", 1);
+    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("SPSC_Pause", 1);
+    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("SPSC_Pause", 1);
     run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("SPSC_Cond", 1);
     run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("SPSC_Cond", 1);
 
@@ -147,8 +148,8 @@ int main() {
 
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("MPSC_Yield", 1);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("MPSC_Yield", 1);
-    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("MPSC_Spin", 1);
-    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("MPSC_Spin", 1);
+    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("MPSC_Pause", 1);
+    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("MPSC_Pause", 1);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 1);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 1);
 
@@ -156,8 +157,8 @@ int main() {
 
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("MPSC_Yield", 3);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("MPSC_Yield", 3);
-    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("MPSC_Spin", 3);
-    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("MPSC_Spin", 3);
+    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("MPSC_Pause", 3);
+    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("MPSC_Pause", 3);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 3);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 3);
 
@@ -165,8 +166,8 @@ int main() {
 
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("MPSC_Yield", 5);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("MPSC_Yield", 5);
-    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("MPSC_Spin", 5);
-    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("MPSC_Spin", 5);
+    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("MPSC_Pause", 5);
+    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("MPSC_Pause", 5);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 5);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 5);
 
@@ -174,8 +175,8 @@ int main() {
 
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("MPSC_Yield", 7);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("MPSC_Yield", 7);
-    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("MPSC_Spin", 7);
-    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitSpin>>("MPSC_Spin", 7);
+    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("MPSC_Pause", 7);
+    run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("MPSC_Pause", 7);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 7);
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 7);
     ;

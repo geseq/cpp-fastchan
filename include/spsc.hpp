@@ -27,7 +27,7 @@ class SPSC {
                 } else if constexpr (wait_type == WaitCondition) {
                     std::unique_lock<std::mutex> lock(put_mutex_);
                     put_cv_.wait(lock, [this] { return next_free_index_2_ <= (reader_index_.load(std::memory_order_acquire) + index_mask_); });
-                } else if constexpr (wait_type == WaitSpin) {
+                } else if constexpr (wait_type == WaitPause) {
                     cpu_pause();
                 }
             } else {
@@ -55,7 +55,7 @@ class SPSC {
                 } else if constexpr (wait_type == WaitCondition) {
                     std::unique_lock<std::mutex> lock(get_mutex_);
                     get_cv_.wait(lock, [this] { return reader_index_2_ < next_free_index_.load(std::memory_order_acquire); });
-                } else if constexpr (wait_type == WaitSpin) {
+                } else if constexpr (wait_type == WaitPause) {
                     cpu_pause();
                 }
             } else {
