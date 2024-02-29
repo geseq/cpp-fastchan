@@ -18,7 +18,7 @@ class SPSC {
     using put_t = typename std::conditional<!std::is_same<PutWaitStrategy, ReturnImmediateStrategy>::value, void, bool>::type;
     using get_t = typename std::conditional<!std::is_same<GetWaitStrategy, ReturnImmediateStrategy>::value, T, std::optional<T>>::type;
 
-    SPSC() = default;
+    SPSC() : next_free_index_(0), reader_index_(0) {}
 
     put_t put(const T &value) noexcept {
         while (next_free_index_2_ > (reader_index_cache_ + index_mask_)) {
@@ -83,13 +83,13 @@ class SPSC {
     struct alignas(64) {
         std::size_t reader_index_cache_{0};
         std::size_t next_free_index_2_{0};
-        std::atomic<std::size_t> next_free_index_{0};
+        std::atomic<std::size_t> next_free_index_;
     };
 
     struct alignas(64) {
         std::size_t next_free_index_cache_{0};
         std::size_t reader_index_2_{0};
-        std::atomic<std::size_t> reader_index_{0};
+        std::atomic<std::size_t> reader_index_;
     };
 };
 }  // namespace fastchan
