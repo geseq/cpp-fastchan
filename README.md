@@ -8,9 +8,9 @@ If the size provided is not a power if 2, it's rounded up to the next power of 2
 
 ```cpp
 // SPSC
-fastchan::SPSC<int, blockingType, chan_size> c;
+fastchan::SPSC<int, chan_size> c;
 // OR
-fastchan::SPSC<int, blockingType, chan_size, fastchan::WaitPause> c;
+fastchan::SPSC<int, chan_size, fastchan::PauseWaitStrategy, fastchan::PauseWaitStrategy> c;
 
 c.put(0);
 c.put(1);
