@@ -35,7 +35,7 @@ class MPSC {
 
         // commit in the correct order to avoid problems
         while (last_committed_index_.load(std::memory_order_relaxed) != write_index) {
-            // we don't return at this point even in case of ReturnImmediatelyStrategy
+            // we don't return at this point even in case of ReturnImmediatelyStrategy as we've already taken the token
             common_.put_wait_.wait([this, write_index] { return last_committed_index_.load(std::memory_order_relaxed) == write_index; });
         }
 
