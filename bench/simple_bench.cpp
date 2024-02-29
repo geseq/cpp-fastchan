@@ -154,8 +154,11 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
 int main() {
 #if defined(__linux__)
     run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("SPSC_Pause");
+    std::cout << "============================" << std::endl;
     run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, NoOpWaitStrategy, NoOpWaitStrategy>>("SPSC_NoOp");
+    std::cout << "============================" << std::endl;
     run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield");
+    std::cout << "============================" << std::endl;
     run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, CVWaitStrategy, CVWaitStrategy>>("SPSC_CV");
 #else
     run_benchmark<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield", 1);
