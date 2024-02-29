@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <optional>
 #include <spsc.hpp>
 #include <thread>
 
@@ -7,16 +8,16 @@ using namespace std::chrono_literals;
 
 const auto IterationsMultiplier = 100;
 
-template <fastchan::BlockingType blockingType, int iterations, fastchan::WaitType waitType>
+template <int iterations, class put_wait_strategy, class get_wait_strategy>
 void testSPSCSingleThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, blockingType, chan_size, waitType> chan;
+    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
     // Test put and read with a single thread
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+        if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
             assert(chan.put(i));
         } else {
             chan.put(i);
@@ -40,7 +41,7 @@ void testSPSCSingleThreaded() {
 
     // Test put and get with a single thread
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+        if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
             assert(chan.put(i));
         } else {
             chan.put(i);
@@ -48,8 +49,10 @@ void testSPSCSingleThreaded() {
     }
 
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::BlockingPutNonBlockingGet) {
-            assert(chan.get() == i);
+        if constexpr (std::is_same<get_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
+            auto val = chan.get();
+            while (val == std::nullopt) val = chan.get();
+            assert(val == i);
         } else {
             assert(chan.get() == i);
         }
@@ -62,17 +65,17 @@ void testSPSCSingleThreaded() {
     assert(chan.isEmpty());
 }
 
-template <fastchan::BlockingType blockingType, int iterations, fastchan::WaitType waitType>
+template <int iterations, class put_wait_strategy, class get_wait_strategy>
 void testSPSCMultiThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, blockingType, chan_size, waitType> chan;
+    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
 
     auto total_iterations = IterationsMultiplier * iterations;
 
     // Test put and get with multiple threads
     std::thread producer([&] {
         for (int i = 1; i <= total_iterations; ++i) {
-            if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::NonBlockingPutBlockingGet) {
+            if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
                 auto result = false;
                 do {
                     result = chan.put(i);
@@ -86,7 +89,7 @@ void testSPSCMultiThreaded() {
 
     std::thread consumer([&] {
         for (int i = 1; i <= total_iterations;) {
-            if constexpr (blockingType == fastchan::NonBlockingPutNonBlockingGet || blockingType == fastchan::BlockingPutNonBlockingGet) {
+            if constexpr (std::is_same<get_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
                 auto&& val = chan.get();
                 while (!val) {
                     val = chan.get();
@@ -109,27 +112,27 @@ void testSPSCMultiThreaded() {
     assert(chan.size() == 0);
 }
 
-template <fastchan::BlockingType blockingType, fastchan::WaitType waitType>
+template <class put_wait_type, class get_wait_type>
 void testSPSC() {
-    testSPSCSingleThreaded<blockingType, 4096, waitType>();
-    testSPSCMultiThreaded<blockingType, 4096, waitType>();
+    testSPSCSingleThreaded<4096, put_wait_type, get_wait_type>();
+    testSPSCMultiThreaded<4096, put_wait_type, get_wait_type>();
 }
 
 int main() {
-    testSPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitPause>();
-    testSPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitPause>();
-    testSPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitPause>();
-    testSPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitPause>();
+    testSPSC<fastchan::PauseWaitStrategy, fastchan::PauseWaitStrategy>();
+    testSPSC<fastchan::PauseWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::PauseWaitStrategy>();
+    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::ReturnImmediateStrategy>();
 
-    testSPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitYield>();
-    testSPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitYield>();
-    testSPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitYield>();
-    testSPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitYield>();
+    testSPSC<fastchan::YieldWaitStrategy, fastchan::YieldWaitStrategy>();
+    testSPSC<fastchan::YieldWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::YieldWaitStrategy>();
+    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::ReturnImmediateStrategy>();
 
-    testSPSC<fastchan::BlockingPutBlockingGet, fastchan::WaitCondition>();
-    testSPSC<fastchan::BlockingPutNonBlockingGet, fastchan::WaitCondition>();
-    testSPSC<fastchan::NonBlockingPutBlockingGet, fastchan::WaitCondition>();
-    testSPSC<fastchan::NonBlockingPutNonBlockingGet, fastchan::WaitCondition>();
+    testSPSC<fastchan::CVWaitStrategy, fastchan::CVWaitStrategy>();
+    testSPSC<fastchan::CVWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::CVWaitStrategy>();
+    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::ReturnImmediateStrategy>();
 
     return 0;
 }

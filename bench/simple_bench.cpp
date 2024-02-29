@@ -132,17 +132,17 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
 
 int main() {
 #if defined(__linux__)
-    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("SPSC_Pause");
-    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, BlockingPutBlockingGet, 32768, WaitNoOp>>("SPSC_NoOp");
+    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("SPSC_Pause");
+    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, NoOpWaitStrategy, NoOpWaitStrategy>>("SPSC_NoOp");
 
     std::cout << "============================" << std::endl;
 
-    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("SPSC_Yield", 1);
-    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitYield>>("SPSC_Yield", 1);
-    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("SPSC_Pause", 1);
-    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitPause>>("SPSC_Pause", 1);
-    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("SPSC_Cond", 1);
-    run_benchmark<SPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("SPSC_Cond", 1);
+    run_benchmark<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield", 1);
+    run_benchmark<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield", 1);
+    run_benchmark<SPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("SPSC_Pause", 1);
+    run_benchmark<SPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("SPSC_Pause", 1);
+    run_benchmark<SPSC<int, 32768, CVWaitStrategy, CVWaitStrategy>>("SPSC_Cond", 1);
+    run_benchmark<SPSC<int, 32768, CVWaitStrategy, CVWaitStrategy>>("SPSC_Cond", 1);
 
     std::cout << "============================" << std::endl;
 
