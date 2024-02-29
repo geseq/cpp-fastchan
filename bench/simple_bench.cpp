@@ -1,5 +1,6 @@
 #include <pthread.h>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -89,6 +90,7 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
     }
     std::cout << std::endl;
 
+    std::vector<std::tuple<long long, size_t, size_t>> cost_per_op;
     for (size_t consumer_cpu = 0; consumer_cpu < cpu_count; ++consumer_cpu) {
         std::cout << std::setfill(' ') << std::setw(10) << "CPU " << consumer_cpu;
         for (size_t producer_cpu = 0; producer_cpu < cpu_count; ++producer_cpu) {
@@ -123,20 +125,42 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
 
             auto end = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            auto cost = elapsed / num_iterations;
 
-            std::cout << std::setfill(' ') << std::setw(10) << elapsed / num_iterations << " ";
+            cost_per_op.emplace_back(cost, producer_cpu, consumer_cpu);
+            std::cout << std::setfill(' ') << std::setw(10) << cost << " ";
         }
         std::cout << std::endl;
+    }
+
+    // Sort the cost_per_op in ascending order
+    std::sort(cost_per_op.begin(), cost_per_op.end(), [](const auto &a, const auto &b) { return std::get<0>(a) < std::get<0>(b); });
+
+    // Display the best 5 cost_per_op and their corresponding CPU pairs
+    std::cout << "\nBest 5 Cost per Op (ns/iteration) and their CPU pairs:\n";
+    for (size_t i = 0; i < std::min(cost_per_op.size(), size_t(5)); ++i) {
+        auto [latency, producer_cpu, consumer_cpu] = cost_per_op[i];
+        std::cout << "Cost: " << latency << ", Producer CPU: " << producer_cpu << ", Consumer CPU: " << consumer_cpu << std::endl;
+    }
+
+    // Display the worst 5 cost_per_op and their corresponding CPU pairs
+    std::cout << "\nWorst 5 Cost per Op (ns/iteration) and their CPU pairs:\n";
+    for (size_t i = cost_per_op.size() - 1; i >= std::max(size_t(0), cost_per_op.size() - size_t(5)); --i) {
+        auto [latency, producer_cpu, consumer_cpu] = cost_per_op[i];
+        std::cout << "Cost: " << latency << ", Producer CPU: " << producer_cpu << ", Consumer CPU: " << consumer_cpu << std::endl;
     }
 }
 
 int main() {
 #if defined(__linux__)
     run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("SPSC_Pause");
-    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, NoOpWaitStrategy, NoOpWaitStrategy>>("SPSC_NoOp");
-
     std::cout << "============================" << std::endl;
-
+    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, NoOpWaitStrategy, NoOpWaitStrategy>>("SPSC_NoOp");
+    std::cout << "============================" << std::endl;
+    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield");
+    std::cout << "============================" << std::endl;
+    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, CVWaitStrategy, CVWaitStrategy>>("SPSC_CV");
+#else
     run_benchmark<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield", 1);
     run_benchmark<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield", 1);
     run_benchmark<SPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("SPSC_Pause", 1);
@@ -181,7 +205,6 @@ int main() {
     run_benchmark<MPSC<int, BlockingPutBlockingGet, 32768, WaitCondition>>("MPSC_Cond", 7);
     ;
 
-#else
     std::cout << "This benchmark requires a Linux platform to run. Exiting." << std::endl;
 #endif
     return 0;
