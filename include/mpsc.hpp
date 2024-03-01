@@ -69,15 +69,6 @@ class MPSC {
         return contents;
     }
 
-    // for testing only
-    void empty() noexcept {
-        consumer_.last_committed_index_cache_ = 0;
-        consumer_.reader_index_2_ = 0;
-        next_free_index_.store(0, std::memory_order_release);
-        last_committed_index_.store(0, std::memory_order_release);
-        consumer_.reader_index_.store(0, std::memory_order_release);
-    }
-
     std::size_t size() const noexcept {
         return last_committed_index_.load(std::memory_order_acquire) - consumer_.reader_index_.load(std::memory_order_acquire);
     }
