@@ -12,7 +12,7 @@ using namespace std::chrono_literals;
 const auto IterationsMultiplier = 100;
 
 template <int iterations, class put_wait_strategy, class get_wait_strategy>
-void testMPSCSingleThreaded() {
+void testMPSCSingleThreaded_Fill() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::MPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
 
@@ -42,7 +42,13 @@ void testMPSCSingleThreaded() {
     assert(chan.size() == iterations);
     assert(chan.isFull() == true);
     assert(chan.isEmpty() == false);
-    chan.empty();
+}
+
+template <int iterations, class put_wait_strategy, class get_wait_strategy>
+void testMPSCSingleThreaded_PutGet() {
+    constexpr std::size_t chan_size = (iterations / 2) + 1;
+    fastchan::MPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
+
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
     assert(chan.isFull() == false);
@@ -77,9 +83,6 @@ void testMPSCSingleThreaded() {
 
     assert(chan.isEmpty());
     assert(chan.size() == 0);
-    chan.empty();
-    assert(chan.size() == 0);
-    assert(chan.isEmpty());
 }
 
 template <int iterations, class put_wait_strategy, class get_wait_strategy>
@@ -181,7 +184,8 @@ void testMPSCMultiThreadedMultiProducer() {
 
 template <class put_wait_type, class get_wait_type>
 void testMPSC() {
-    testMPSCSingleThreaded<4, put_wait_type, get_wait_type>();
+    testMPSCSingleThreaded_Fill<4, put_wait_type, get_wait_type>();
+    testMPSCSingleThreaded_PutGet<4, put_wait_type, get_wait_type>();
     testMPSCMultiThreadedSingleProducer<4, put_wait_type, get_wait_type>();
     if (std::thread::hardware_concurrency() > 5) {
         testMPSCMultiThreadedMultiProducer<4, 3, put_wait_type, get_wait_type>();
@@ -190,7 +194,8 @@ void testMPSC() {
         testMPSCMultiThreadedMultiProducer<4, 2, put_wait_type, get_wait_type>();
     }
 
-    testMPSCSingleThreaded<4096, put_wait_type, get_wait_type>();
+    testMPSCSingleThreaded_Fill<4096, put_wait_type, get_wait_type>();
+    testMPSCSingleThreaded_PutGet<4096, put_wait_type, get_wait_type>();
     testMPSCMultiThreadedSingleProducer<4096, put_wait_type, get_wait_type>();
     if (std::thread::hardware_concurrency() > 5) {
         testMPSCMultiThreadedMultiProducer<4096, 3, put_wait_type, get_wait_type>();

@@ -9,13 +9,12 @@ using namespace std::chrono_literals;
 const auto IterationsMultiplier = 100;
 
 template <int iterations, class put_wait_strategy, class get_wait_strategy>
-void testSPSCSingleThreaded() {
+void testSPSCSingleThreaded_Fill() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
     fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
-    // Test put and read with a single thread
     for (int i = 0; i < iterations; ++i) {
         if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
             assert(chan.put(i));
@@ -34,7 +33,13 @@ void testSPSCSingleThreaded() {
     assert(chan.size() == iterations);
     assert(chan.isFull() == true);
     assert(chan.isEmpty() == false);
-    chan.empty();
+}
+
+template <int iterations, class put_wait_strategy, class get_wait_strategy>
+void testSPSCSingleThreaded_PutGet() {
+    constexpr std::size_t chan_size = (iterations / 2) + 1;
+    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
+
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
     assert(chan.isFull() == false);
@@ -60,9 +65,6 @@ void testSPSCSingleThreaded() {
 
     assert(chan.isEmpty());
     assert(chan.size() == 0);
-    chan.empty();
-    assert(chan.size() == 0);
-    assert(chan.isEmpty());
 }
 
 template <int iterations, class put_wait_strategy, class get_wait_strategy>
@@ -114,7 +116,8 @@ void testSPSCMultiThreaded() {
 
 template <class put_wait_type, class get_wait_type>
 void testSPSC() {
-    testSPSCSingleThreaded<4096, put_wait_type, get_wait_type>();
+    testSPSCSingleThreaded_Fill<4096, put_wait_type, get_wait_type>();
+    testSPSCSingleThreaded_PutGet<4096, put_wait_type, get_wait_type>();
     testSPSCMultiThreaded<4096, put_wait_type, get_wait_type>();
 }
 

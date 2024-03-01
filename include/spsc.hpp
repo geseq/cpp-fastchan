@@ -59,16 +59,6 @@ class SPSC {
         return contents;
     }
 
-    // For testing only
-    void empty() noexcept {
-        consumer_.next_free_index_cache_ = 0;
-        producer_.reader_index_cache_ = 0;
-        consumer_.reader_index_2_ = 0;
-        producer_.next_free_index_2_ = 0;
-        producer_.next_free_index_.store(0, std::memory_order_release);
-        consumer_.reader_index_.store(0, std::memory_order_release);
-    }
-
     std::size_t size() const noexcept {
         return producer_.next_free_index_.load(std::memory_order_acquire) - consumer_.reader_index_.load(std::memory_order_acquire);
     }
