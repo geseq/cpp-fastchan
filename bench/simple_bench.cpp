@@ -13,6 +13,7 @@
 
 #include "common.hpp"
 #include "mpsc.hpp"
+#include "rigtorp/SPSCQueue.h"
 #include "spsc.hpp"
 
 using namespace fastchan;
@@ -180,15 +181,74 @@ struct alignas(64) AlignedData {
     operator int() const { return value; }
 };
 
+template <typename T, size_t min_size, class PutWaitStrategy = YieldWaitStrategy, class GetWaitStrategy = YieldWaitStrategy>
+class RigtorpSPSC {
+   public:
+    using put_t = typename std::conditional<!std::is_same<PutWaitStrategy, ReturnImmediateStrategy>::value, void, bool>::type;
+    using get_t = typename std::conditional<!std::is_same<GetWaitStrategy, ReturnImmediateStrategy>::value, T, std::optional<T>>::type;
+
+    RigtorpSPSC() = default;
+
+    inline put_t put(const T &value) noexcept {
+        if constexpr (std::is_same<GetWaitStrategy, PauseWaitStrategy>::value) {
+            while (!q.try_push(value)) {
+                fastchan::cpu_pause();
+            }
+        } else if constexpr (std::is_same<GetWaitStrategy, PauseWaitStrategy>::value) {
+            while (!q.try_push(value)) {
+                std::this_thread::yield();
+            }
+        } else {
+            q.push(value);
+        }
+    }
+
+    inline get_t get() noexcept {
+        while (!q.front()) {
+            if constexpr (std::is_same<GetWaitStrategy, PauseWaitStrategy>::value) {
+                fastchan::cpu_pause();
+            } else if constexpr (std::is_same<GetWaitStrategy, YieldWaitStrategy>::value) {
+                std::this_thread::yield();
+            } else {
+                // No Op
+            }
+
+            // There is no CV equivalent
+        }
+        auto val = *q.front();
+        q.pop();
+
+        return val;
+    }
+
+    inline bool isEmpty() noexcept { return q.front() == nullptr; }
+
+   private:
+    rigtorp::SPSCQueue<T> q{min_size};
+};
+
 int main() {
 #if defined(__linux__)
-    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("SPSC_Pause");
-    std::cout << "============================" << std::endl;
-    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, NoOpWaitStrategy, NoOpWaitStrategy>>("SPSC_NoOp");
-    std::cout << "============================" << std::endl;
-    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield");
-    std::cout << "============================" << std::endl;
-    run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, CVWaitStrategy, CVWaitStrategy>>("SPSC_CV");
+    for (int i = 0; i < 2; ++i) {
+        run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("fastchan_SPSC_Pause");
+        std::cout << "============================" << std::endl;
+
+        run_spsc_benchmark_for_all_cpu_pairs<RigtorpSPSC<int, 32768, PauseWaitStrategy, PauseWaitStrategy>>("Rigtorp_SPSC_Pause");
+        std::cout << "============================" << std::endl;
+
+        run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, NoOpWaitStrategy, NoOpWaitStrategy>>("fastchan_SPSC_NoOp");
+        std::cout << "============================" << std::endl;
+
+        run_spsc_benchmark_for_all_cpu_pairs<RigtorpSPSC<int, 32768, NoOpWaitStrategy, NoOpWaitStrategy>>("rigtorp_SPSC_NoOp");
+        std::cout << "============================" << std::endl;
+
+        run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("fastchan_SPSC_Yield");
+        std::cout << "============================" << std::endl;
+        run_spsc_benchmark_for_all_cpu_pairs<RigtorpSPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("rigtorp_SPSC_Yield");
+        std::cout << "============================" << std::endl;
+
+        run_spsc_benchmark_for_all_cpu_pairs<SPSC<int, 32768, CVWaitStrategy, CVWaitStrategy>>("SPSC_CV");
+    }
 #else
     run_benchmark<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield", 1);
     run_benchmark<SPSC<int, 32768, YieldWaitStrategy, YieldWaitStrategy>>("SPSC_Yield", 1);

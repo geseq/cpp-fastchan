@@ -36,6 +36,9 @@ if (ENABLE_TESTING)
         CPMUsePackageLock(package-lock.cmake)
 
         CPMAddPackage( NAME benchmark GITHUB_REPOSITORY google/benchmark VERSION 1.5.2 OPTIONS "BENCHMARK_ENABLE_TESTING Off")
+        CPMAddPackage( NAME SPSCQueue GITHUB_REPOSITORY rigtorp/SPSCQueue GIT_TAG "master")
+
+        include_directories(SPSCQueue_SOURCE_DIR)
 
         if(TARGET benchmark::benchmark)
             # enable c++11 to avoid compilation errors
@@ -57,6 +60,7 @@ if (ENABLE_TESTING)
             target_link_libraries(${test_name} PRIVATE Boost::lockfree)
             target_link_libraries(${test_name} PRIVATE benchmark::benchmark)
             target_link_libraries(${test_name} PRIVATE fastchan)
+            target_link_libraries(${test_name} PRIVATE SPSCQueue)
             add_test(${test_name} ${test_name})
             set_property(TEST ${test_name} PROPERTY LABELS "bench")
             list(APPEND ignore_tests ${test_name})
