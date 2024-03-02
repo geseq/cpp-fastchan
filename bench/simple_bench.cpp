@@ -105,7 +105,9 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
 
             Chan chan;
 
+            std::atomic<bool> consumer_ready = false;
             auto consumer_thread = std::thread([&] {
+                consumer_ready.store(true, std::memory_order_release);
                 set_affinity(consumer_cpu);
                 int val;
                 for (int i = 0; i < num_iterations; ++i) {
@@ -116,12 +118,26 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
                 }
             });
 
-            set_affinity(producer_cpu);
-            auto start = std::chrono::steady_clock::now();
-            for (int i = 0; i < num_iterations; ++i) {
-                chan.put(i);
+            std::atomic<bool> start_bench = false;
+            std::atomic<bool> producer_ready = false;
+            auto producer_thread = std::thread([&] {
+                producer_ready.store(true, std::memory_order_release);
+                set_affinity(producer_cpu);
+                while (!start_bench.load(std::memory_order_acquire)) {
+                    fastchan::cpu_pause();
+                }
+                for (int i = 0; i < num_iterations; ++i) {
+                    chan.put(i);
+                }
+            });
+
+            while (!producer_ready.load(std::memory_order_acquire) || !consumer_ready.load(std::memory_order_acquire)) {
+                fastchan::cpu_pause();
             }
 
+            auto start = std::chrono::steady_clock::now();
+            start_bench.store(true, std::memory_order_release);
+            producer_thread.join();
             consumer_thread.join();
             while (!chan.isEmpty())
                 ;
@@ -143,16 +159,26 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
     std::cout << "\nBest 5 Cost per Op (ns/iteration) and their CPU pairs:\n";
     for (size_t i = 0; i < std::min(cost_per_op.size(), size_t(5)); ++i) {
         auto [latency, producer_cpu, consumer_cpu] = cost_per_op[i];
-        std::cout << "Cost: " << latency << ", Producer CPU: " << producer_cpu << ", Consumer CPU: " << consumer_cpu << std::endl;
+        std::cout << "Cost: " << latency << ", Producer CPU: " << std::setw(2) << producer_cpu << ", Consumer CPU: " << std::setw(2) << consumer_cpu
+                  << std::endl;
     }
 
     // Display the worst 5 cost_per_op and their corresponding CPU pairs
     std::cout << "\nWorst 5 Cost per Op (ns/iteration) and their CPU pairs:\n";
     for (size_t i = cost_per_op.size() - 1; i >= std::max(size_t(0), cost_per_op.size() - size_t(5)); --i) {
         auto [latency, producer_cpu, consumer_cpu] = cost_per_op[i];
-        std::cout << "Cost: " << latency << ", Producer CPU: " << producer_cpu << ", Consumer CPU: " << consumer_cpu << std::endl;
+        std::cout << "Cost: " << latency << ", Producer CPU: " << std::setw(2) << producer_cpu << ", Consumer CPU: " << std::setw(2) << consumer_cpu
+                  << std::endl;
     }
 }
+
+struct alignas(64) AlignedData {
+    int value;
+    AlignedData(int v = 0) : value(v) {}
+
+    // Conversion operator to int
+    operator int() const { return value; }
+};
 
 int main() {
 #if defined(__linux__)
