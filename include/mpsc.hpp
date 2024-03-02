@@ -19,29 +19,30 @@ class MPSC {
     MPSC() = default;
 
     put_t put(const T &value) noexcept {
-        alignas(64) thread_local static std::size_t reader_index_cache;
-        alignas(64) thread_local static std::size_t write_index;
+        alignas(64) thread_local static Producer p;
         do {
-            while (write_index > (reader_index_cache + common_.index_mask_)) {
-                write_index = next_free_index_.load(std::memory_order_acquire);
-                reader_index_cache = consumer_.reader_index_.load(std::memory_order_relaxed);
+            while (p.write_index_cache_ > (p.reader_index_cache_ + common_.index_mask_)) {
+                p.write_index_cache_ = next_free_index_.load(std::memory_order_acquire);
+                p.reader_index_cache_ = consumer_.reader_index_.load(std::memory_order_relaxed);
                 if constexpr (std::is_same<PutWaitStrategy, ReturnImmediateStrategy>::value) {
                     return false;
                 } else {
-                    common_.put_wait_.wait([this] { return write_index <= (consumer_.reader_index_.load(std::memory_order_relaxed) + common_.index_mask_); });
+                    common_.put_wait_.wait(
+                        [this] { return p.write_index_cache_ <= (consumer_.reader_index_.load(std::memory_order_relaxed) + common_.index_mask_); });
                 }
             }
-        } while (!next_free_index_.compare_exchange_strong(write_index, write_index + 1, std::memory_order_acq_rel, std::memory_order_acquire));
+        } while (
+            !next_free_index_.compare_exchange_strong(p.write_index_cache_, p.write_index_cache_ + 1, std::memory_order_acq_rel, std::memory_order_acquire));
 
-        contents_[write_index & common_.index_mask_] = value;
+        contents_[p.write_index_cache_ & common_.index_mask_] = value;
 
         // commit in the correct order to avoid problems
-        while (last_committed_index_.load(std::memory_order_relaxed) != write_index) {
+        while (last_committed_index_.load(std::memory_order_relaxed) != p.write_index_cache_) {
             // we don't return at this point even in case of ReturnImmediatelyStrategy as we've already taken the token
-            common_.put_wait_.wait([this] { return last_committed_index_.load(std::memory_order_relaxed) == write_index; });
+            common_.put_wait_.wait([this] { return last_committed_index_.load(std::memory_order_relaxed) == p.write_index_cache_; });
         }
 
-        last_committed_index_.store(++write_index, std::memory_order_release);
+        last_committed_index_.store(++p.write_index_cache_, std::memory_order_release);
 
         common_.get_wait_.notify();
         common_.put_wait_.notify();
@@ -91,6 +92,11 @@ class MPSC {
         GetWaitStrategy get_wait_{};
         PutWaitStrategy put_wait_{};
         const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
+    };
+
+    struct alignas(64) Producer {
+        std::size_t reader_index_cache_{0};
+        std::size_t write_index_cache_{0};
     };
 
     struct alignas(64) Consumer {
