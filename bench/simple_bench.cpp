@@ -83,16 +83,19 @@ template <typename Chan>
 void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
     size_t cpu_count = std::thread::hardware_concurrency();
 
+    std::cout << std::fixed;
+    std::cout << std::setprecision(1);
+
     std::cout << name << std::endl;
     std::cout << std::setfill(' ') << std::setw(10) << "C\\P ms";
     for (size_t i = 0; i < cpu_count; ++i) {
-        std::cout << std::setfill(' ') << std::setw(10) << "CPU " << i;
+        std::cout << std::setfill(' ') << std::setw(8) << "CPU " << std::setfill(' ') << std::setw(2) << i;
     }
     std::cout << std::endl;
 
-    std::vector<std::tuple<long long, size_t, size_t>> cost_per_op;
+    std::vector<std::tuple<double, size_t, size_t>> cost_per_op;
     for (size_t consumer_cpu = 0; consumer_cpu < cpu_count; ++consumer_cpu) {
-        std::cout << std::setfill(' ') << std::setw(10) << "CPU " << consumer_cpu;
+        std::cout << std::setfill(' ') << std::setw(8) << "CPU " << std::setfill(' ') << std::setw(2) << consumer_cpu;
         for (size_t producer_cpu = 0; producer_cpu < cpu_count; ++producer_cpu) {
             // Skip the iteration if producer and consumer would run on the same CPU.
             if (producer_cpu == consumer_cpu) {
@@ -125,10 +128,10 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
 
             auto end = std::chrono::steady_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-            auto cost = elapsed / num_iterations;
+            auto cost = double(elapsed) / double(num_iterations);
 
             cost_per_op.emplace_back(cost, producer_cpu, consumer_cpu);
-            std::cout << std::setfill(' ') << std::setw(10) << cost << " ";
+            std::cout << std::setfill(' ') << std::setw(10) << cost;
         }
         std::cout << std::endl;
     }
