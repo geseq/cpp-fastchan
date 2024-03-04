@@ -173,7 +173,7 @@ void run_spsc_benchmark_for_all_cpu_pairs(const std::string &name) {
     }
 }
 
-struct alignas(64) AlignedData {
+struct alignas(hardware_destructive_interference_size) AlignedData {
     int value;
     AlignedData(int v = 0) : value(v) {}
 

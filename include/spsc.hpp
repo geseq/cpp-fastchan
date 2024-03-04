@@ -74,19 +74,19 @@ class SPSC {
    private:
     std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 
-    struct alignas(64) Common {
+    struct alignas(hardware_destructive_interference_size) Common {
         GetWaitStrategy get_wait_{};
         PutWaitStrategy put_wait_{};
         const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
     };
 
-    struct alignas(64) Producer {
+    struct alignas(hardware_destructive_interference_size) Producer {
         std::size_t reader_index_cache_{0};
         std::size_t next_free_index_2_{0};
         std::atomic<std::size_t> next_free_index_{0};
     };
 
-    struct alignas(64) Consumer {
+    struct alignas(hardware_destructive_interference_size) Consumer {
         std::size_t next_free_index_cache_{0};
         std::size_t reader_index_2_{0};
         std::atomic<std::size_t> reader_index_{0};
