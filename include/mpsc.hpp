@@ -19,7 +19,7 @@ class MPSC {
     MPSC() = default;
 
     put_t put(const T &value) noexcept {
-        alignas(64) thread_local static Producer p;
+        alignas(hardware_destructive_interference_size) thread_local static Producer p;
         do {
             while (p.write_index_cache_ > (p.reader_index_cache_ + common_.index_mask_)) {
                 p.write_index_cache_ = next_free_index_.load(std::memory_order_acquire);
@@ -85,21 +85,21 @@ class MPSC {
    private:
     std::array<T, roundUpNextPowerOfTwo(min_size)> contents_;
 
-    alignas(64) std::atomic<std::size_t> next_free_index_{0};
-    alignas(64) std::atomic<std::size_t> last_committed_index_{0};
+    alignas(hardware_destructive_interference_size) std::atomic<std::size_t> next_free_index_{0};
+    alignas(hardware_destructive_interference_size) std::atomic<std::size_t> last_committed_index_{0};
 
-    struct alignas(64) Common {
+    struct alignas(hardware_destructive_interference_size) Common {
         GetWaitStrategy get_wait_{};
         PutWaitStrategy put_wait_{};
         const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
     };
 
-    struct alignas(64) Producer {
+    struct alignas(hardware_destructive_interference_size) Producer {
         std::size_t reader_index_cache_{0};
         std::size_t write_index_cache_{0};
     };
 
-    struct alignas(64) Consumer {
+    struct alignas(hardware_destructive_interference_size) Consumer {
         std::size_t last_committed_index_cache_{0};
         std::size_t reader_index_2_{0};
         std::atomic<std::size_t> reader_index_{0};

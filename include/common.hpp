@@ -28,4 +28,10 @@ constexpr size_t roundUpNextPowerOfTwo(size_t v) {
 }
 }  // namespace fastchan
 
+#ifdef __cpp_lib_hardware_interference_size
+using std::hardware_destructive_interference_size;
+#else
+constexpr std::size_t hardware_destructive_interference_size = 64;
+#endif
+
 #endif
