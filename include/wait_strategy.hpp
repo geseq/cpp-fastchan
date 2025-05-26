@@ -2,7 +2,6 @@
 #include <condition_variable>
 #include <ratio>
 #include <thread>
-
 #include "common.hpp"
 
 #ifndef FASTCHANWAIT_HPP
@@ -10,16 +9,15 @@
 
 namespace fastchan {
 
+// Return mode enum to distinguish between blocking and non-blocking behavior
+enum class ReturnMode {
+    Blocking,
+    NonBlocking
+};
+
 // WaitStrategyInterface is the interface for actual implementation of a wait strategy handler
 template <typename Implementation>
 class WaitStrategyInterface {
-   public:
-    template <class Predicate>
-    inline void wait(Predicate p) {}
-    inline void notify() {}
-};
-
-class ReturnImmediateStrategy : public WaitStrategyInterface<ReturnImmediateStrategy> {
    public:
     template <class Predicate>
     inline void wait(Predicate p) {}
@@ -51,16 +49,14 @@ class YieldWaitStrategy : public WaitStrategyInterface<YieldWaitStrategy> {
     inline void notify() {}
 };
 
-class CVWaitStrategy : public WaitStrategyInterface<PauseWaitStrategy> {
+class CVWaitStrategy : public WaitStrategyInterface<CVWaitStrategy> {
    public:
     template <class Predicate>
     inline void wait(Predicate p) {
         std::unique_lock<std::mutex> lock(mutex_);
         cv_.wait_for(lock, std::chrono::nanoseconds(100), p);
     }
-
     inline void notify() { cv_.notify_all(); }
-
    private:
     std::condition_variable cv_;
     std::mutex mutex_;
