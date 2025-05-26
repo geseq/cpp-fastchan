@@ -181,11 +181,12 @@ struct alignas(hardware_destructive_interference_size) AlignedData {
     operator int() const { return value; }
 };
 
-template <typename T, size_t min_size, class PutWaitStrategy = YieldWaitStrategy, class GetWaitStrategy = YieldWaitStrategy>
+template <typename T, size_t min_size, class PutWaitStrategy = YieldWaitStrategy, class GetWaitStrategy = YieldWaitStrategy,
+          ReturnMode put_mode = ReturnMode::Blocking, ReturnMode get_mode = ReturnMode::Blocking>
 class RigtorpSPSC {
    public:
-    using put_t = typename std::conditional<!std::is_same<PutWaitStrategy, ReturnImmediateStrategy>::value, void, bool>::type;
-    using get_t = typename std::conditional<!std::is_same<GetWaitStrategy, ReturnImmediateStrategy>::value, T, std::optional<T>>::type;
+    using put_t = typename std::conditional<put_mode == fastchan::ReturnMode::Blocking, void, bool>::type;
+    using get_t = typename std::conditional<get_mode == fastchan::ReturnMode::Blocking, T, std::optional<T>>::type;
 
     RigtorpSPSC() = default;
 

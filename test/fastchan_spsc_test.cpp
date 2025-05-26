@@ -8,15 +8,16 @@ using namespace std::chrono_literals;
 
 const auto IterationsMultiplier = 100;
 
-template <int iterations, class put_wait_strategy, class get_wait_strategy>
+template <int iterations, fastchan::ReturnMode put_mode, fastchan::ReturnMode get_mode, class put_wait_strategy = fastchan::YieldWaitStrategy,
+          class get_wait_strategy = fastchan::YieldWaitStrategy>
 void testSPSCSingleThreaded_Fill() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
+    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy, put_mode, get_mode> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
+        if constexpr (put_mode == fastchan::ReturnMode::NonBlocking) {
             assert(chan.put(i));
         } else {
             chan.put(i);
@@ -35,10 +36,11 @@ void testSPSCSingleThreaded_Fill() {
     assert(chan.isEmpty() == false);
 }
 
-template <int iterations, class put_wait_strategy, class get_wait_strategy>
+template <int iterations, fastchan::ReturnMode put_mode, fastchan::ReturnMode get_mode, class put_wait_strategy = fastchan::YieldWaitStrategy,
+          class get_wait_strategy = fastchan::YieldWaitStrategy>
 void testSPSCSingleThreaded_PutGet() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
+    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy, put_mode, get_mode> chan;
 
     assert(chan.size() == 0);
     assert(chan.isEmpty() == true);
@@ -46,7 +48,7 @@ void testSPSCSingleThreaded_PutGet() {
 
     // Test put and get with a single thread
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
+        if constexpr (put_mode == fastchan::ReturnMode::NonBlocking) {
             auto result = false;
             do {
                 result = chan.put(i);
@@ -57,7 +59,7 @@ void testSPSCSingleThreaded_PutGet() {
     }
 
     for (int i = 0; i < iterations; ++i) {
-        if constexpr (std::is_same<get_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
+        if constexpr (get_mode == fastchan::ReturnMode::NonBlocking) {
             auto val = chan.get();
             while (val == std::nullopt) val = chan.get();
             assert(val == i);
@@ -70,17 +72,18 @@ void testSPSCSingleThreaded_PutGet() {
     assert(chan.size() == 0);
 }
 
-template <int iterations, class put_wait_strategy, class get_wait_strategy>
+template <int iterations, fastchan::ReturnMode put_mode, fastchan::ReturnMode get_mode, class put_wait_strategy = fastchan::YieldWaitStrategy,
+          class get_wait_strategy = fastchan::YieldWaitStrategy>
 void testSPSCMultiThreaded() {
     constexpr std::size_t chan_size = (iterations / 2) + 1;
-    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy> chan;
+    fastchan::SPSC<int, chan_size, put_wait_strategy, get_wait_strategy, put_mode, get_mode> chan;
 
     auto total_iterations = IterationsMultiplier * iterations;
 
     // Test put and get with multiple threads
     std::thread producer([&] {
         for (int i = 1; i <= total_iterations; ++i) {
-            if constexpr (std::is_same<put_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
+            if constexpr (put_mode == fastchan::ReturnMode::NonBlocking) {
                 auto result = false;
                 do {
                     result = chan.put(i);
@@ -94,7 +97,7 @@ void testSPSCMultiThreaded() {
 
     std::thread consumer([&] {
         for (int i = 1; i <= total_iterations;) {
-            if constexpr (std::is_same<get_wait_strategy, fastchan::ReturnImmediateStrategy>::value) {
+            if constexpr (get_mode == fastchan::ReturnMode::NonBlocking) {
                 auto&& val = chan.get();
                 while (!val) {
                     val = chan.get();
@@ -117,43 +120,46 @@ void testSPSCMultiThreaded() {
     assert(chan.size() == 0);
 }
 
-template <class put_wait_type, class get_wait_type>
+template <fastchan::ReturnMode put_mode, fastchan::ReturnMode get_mode, class put_wait_type = fastchan::YieldWaitStrategy,
+          class get_wait_type = fastchan::YieldWaitStrategy>
 void testSPSC() {
-    testSPSCSingleThreaded_Fill<4096, put_wait_type, get_wait_type>();
-    testSPSCSingleThreaded_PutGet<4096, put_wait_type, get_wait_type>();
-    testSPSCMultiThreaded<4096, put_wait_type, get_wait_type>();
+    testSPSCSingleThreaded_Fill<4096, put_mode, get_mode, put_wait_type, get_wait_type>();
+    testSPSCSingleThreaded_PutGet<4096, put_mode, get_mode, put_wait_type, get_wait_type>();
+    testSPSCMultiThreaded<4096, put_mode, get_mode, put_wait_type, get_wait_type>();
 }
 
 int main() {
-    testSPSC<fastchan::PauseWaitStrategy, fastchan::PauseWaitStrategy>();
-    testSPSC<fastchan::PauseWaitStrategy, fastchan::YieldWaitStrategy>();
-    testSPSC<fastchan::PauseWaitStrategy, fastchan::NoOpWaitStrategy>();
-    testSPSC<fastchan::PauseWaitStrategy, fastchan::CVWaitStrategy>();
-    testSPSC<fastchan::PauseWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    using namespace fastchan;
 
-    testSPSC<fastchan::YieldWaitStrategy, fastchan::YieldWaitStrategy>();
-    testSPSC<fastchan::YieldWaitStrategy, fastchan::PauseWaitStrategy>();
-    testSPSC<fastchan::YieldWaitStrategy, fastchan::NoOpWaitStrategy>();
-    testSPSC<fastchan::YieldWaitStrategy, fastchan::CVWaitStrategy>();
-    testSPSC<fastchan::YieldWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, PauseWaitStrategy, PauseWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, PauseWaitStrategy, YieldWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, PauseWaitStrategy, NoOpWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, PauseWaitStrategy, CVWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::NonBlocking, PauseWaitStrategy>();
 
-    testSPSC<fastchan::NoOpWaitStrategy, fastchan::NoOpWaitStrategy>();
-    testSPSC<fastchan::NoOpWaitStrategy, fastchan::YieldWaitStrategy>();
-    testSPSC<fastchan::NoOpWaitStrategy, fastchan::PauseWaitStrategy>();
-    testSPSC<fastchan::NoOpWaitStrategy, fastchan::CVWaitStrategy>();
-    testSPSC<fastchan::NoOpWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, YieldWaitStrategy, YieldWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, YieldWaitStrategy, PauseWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, YieldWaitStrategy, NoOpWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, YieldWaitStrategy, CVWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::NonBlocking, YieldWaitStrategy>();
 
-    testSPSC<fastchan::CVWaitStrategy, fastchan::CVWaitStrategy>();
-    testSPSC<fastchan::CVWaitStrategy, fastchan::YieldWaitStrategy>();
-    testSPSC<fastchan::CVWaitStrategy, fastchan::PauseWaitStrategy>();
-    testSPSC<fastchan::CVWaitStrategy, fastchan::NoOpWaitStrategy>();
-    testSPSC<fastchan::CVWaitStrategy, fastchan::ReturnImmediateStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, NoOpWaitStrategy, NoOpWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, NoOpWaitStrategy, YieldWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, NoOpWaitStrategy, PauseWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, NoOpWaitStrategy, CVWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::NonBlocking, NoOpWaitStrategy>();
 
-    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::PauseWaitStrategy>();
-    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::YieldWaitStrategy>();
-    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::NoOpWaitStrategy>();
-    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::CVWaitStrategy>();
-    testSPSC<fastchan::ReturnImmediateStrategy, fastchan::ReturnImmediateStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, CVWaitStrategy, CVWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, CVWaitStrategy, YieldWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, CVWaitStrategy, PauseWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::Blocking, CVWaitStrategy, NoOpWaitStrategy>();
+    testSPSC<ReturnMode::Blocking, ReturnMode::NonBlocking, CVWaitStrategy>();
+
+    testSPSC<ReturnMode::NonBlocking, ReturnMode::Blocking, YieldWaitStrategy, PauseWaitStrategy>();
+    testSPSC<ReturnMode::NonBlocking, ReturnMode::Blocking, YieldWaitStrategy, YieldWaitStrategy>();
+    testSPSC<ReturnMode::NonBlocking, ReturnMode::Blocking, YieldWaitStrategy, NoOpWaitStrategy>();
+    testSPSC<ReturnMode::NonBlocking, ReturnMode::Blocking, YieldWaitStrategy, CVWaitStrategy>();
+    testSPSC<ReturnMode::NonBlocking, ReturnMode::NonBlocking>();
 
     return 0;
 }

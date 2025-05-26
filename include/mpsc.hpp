@@ -4,17 +4,19 @@
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <variant>
 
 #include "common.hpp"
 #include "wait_strategy.hpp"
 
 namespace fastchan {
 
-template <typename T, size_t min_size, class PutWaitStrategy = YieldWaitStrategy, class GetWaitStrategy = YieldWaitStrategy>
+template <typename T, size_t min_size, class PutWaitStrategy = YieldWaitStrategy, class GetWaitStrategy = YieldWaitStrategy,
+          ReturnMode put_mode = ReturnMode::Blocking, ReturnMode get_mode = ReturnMode::Blocking>
 class MPSC {
    public:
-    using put_t = typename std::conditional<!std::is_same<PutWaitStrategy, ReturnImmediateStrategy>::value, void, bool>::type;
-    using get_t = typename std::conditional<!std::is_same<GetWaitStrategy, ReturnImmediateStrategy>::value, T, std::optional<T>>::type;
+    using put_t = typename std::conditional<put_mode == ReturnMode::Blocking, void, bool>::type;
+    using get_t = typename std::conditional<get_mode == ReturnMode::Blocking, T, std::optional<T>>::type;
 
     MPSC() = default;
 
@@ -24,7 +26,7 @@ class MPSC {
             while (p.write_index_cache_ > (p.reader_index_cache_ + common_.index_mask_)) {
                 p.write_index_cache_ = next_free_index_.load(std::memory_order_acquire);
                 p.reader_index_cache_ = consumer_.reader_index_.load(std::memory_order_relaxed);
-                if constexpr (std::is_same<PutWaitStrategy, ReturnImmediateStrategy>::value) {
+                if constexpr (put_mode == ReturnMode::NonBlocking) {
                     return false;
                 } else {
                     common_.put_wait_.wait(
@@ -36,18 +38,25 @@ class MPSC {
 
         contents_[p.write_index_cache_ & common_.index_mask_] = value;
 
-        // commit in the correct order to avoid problems
         while (last_committed_index_.load(std::memory_order_relaxed) != p.write_index_cache_) {
-            // we don't return at this point even in case of ReturnImmediatelyStrategy as we've already taken the token
-            common_.put_wait_.wait([this] { return last_committed_index_.load(std::memory_order_relaxed) == p.write_index_cache_; });
+            if constexpr (put_mode == ReturnMode::Blocking) {
+                auto expected_index = p.write_index_cache_;
+                common_.put_wait_.wait([this, expected_index] { return last_committed_index_.load(std::memory_order_relaxed) == expected_index; });
+            }
         }
 
         last_committed_index_.store(++p.write_index_cache_, std::memory_order_release);
 
-        common_.get_wait_.notify();
-        common_.put_wait_.notify();
+        if constexpr (put_mode == ReturnMode::Blocking || get_mode == ReturnMode::Blocking) {
+            if constexpr (get_mode == ReturnMode::Blocking) {
+                common_.get_wait_.notify();
+            }
+            if constexpr (put_mode == ReturnMode::Blocking) {
+                common_.put_wait_.notify();
+            }
+        }
 
-        if constexpr (std::is_same<PutWaitStrategy, ReturnImmediateStrategy>::value) {
+        if constexpr (put_mode == ReturnMode::NonBlocking) {
             return true;
         }
     }
@@ -55,7 +64,7 @@ class MPSC {
     get_t get() noexcept {
         while (consumer_.reader_index_2_ >= consumer_.last_committed_index_cache_) {
             consumer_.last_committed_index_cache_ = last_committed_index_.load(std::memory_order_relaxed);
-            if constexpr (std::is_same<GetWaitStrategy, ReturnImmediateStrategy>::value) {
+            if constexpr (get_mode == ReturnMode::NonBlocking) {
                 return std::nullopt;
             } else {
                 common_.get_wait_.wait([this] { return consumer_.reader_index_2_ < last_committed_index_.load(std::memory_order_relaxed); });
@@ -65,7 +74,11 @@ class MPSC {
         auto contents = contents_[consumer_.reader_index_2_ & common_.index_mask_];
         consumer_.reader_index_.store(++consumer_.reader_index_2_, std::memory_order_release);
 
-        common_.put_wait_.notify();
+        if constexpr (put_mode == ReturnMode::Blocking || get_mode == ReturnMode::Blocking) {
+            if constexpr (put_mode == ReturnMode::Blocking) {
+                common_.put_wait_.notify();
+            }
+        }
 
         return contents;
     }
@@ -77,8 +90,6 @@ class MPSC {
     bool isEmpty() const noexcept { return consumer_.reader_index_.load(std::memory_order_acquire) >= last_committed_index_.load(std::memory_order_acquire); }
 
     bool isFull() const noexcept {
-        // this isFull is about whether there's all writer slots to the buffer are taken rather than whether those
-        // changes have actually been committed
         return next_free_index_.load(std::memory_order_acquire) > (consumer_.reader_index_.load(std::memory_order_acquire) + common_.index_mask_);
     }
 
@@ -89,8 +100,11 @@ class MPSC {
     alignas(hardware_destructive_interference_size) std::atomic<std::size_t> last_committed_index_{0};
 
     struct alignas(hardware_destructive_interference_size) Common {
-        GetWaitStrategy get_wait_{};
-        PutWaitStrategy put_wait_{};
+        static_assert(put_mode == ReturnMode::NonBlocking || std::is_base_of_v<WaitStrategyInterface<PutWaitStrategy>, PutWaitStrategy>);
+        static_assert(get_mode == ReturnMode::NonBlocking || std::is_base_of_v<WaitStrategyInterface<GetWaitStrategy>, GetWaitStrategy>);
+
+        typename std::conditional<get_mode == ReturnMode::Blocking, GetWaitStrategy, std::monostate>::type get_wait_{};
+        typename std::conditional<put_mode == ReturnMode::Blocking, PutWaitStrategy, std::monostate>::type put_wait_{};
         const std::size_t index_mask_ = roundUpNextPowerOfTwo(min_size) - 1;
     };
 
